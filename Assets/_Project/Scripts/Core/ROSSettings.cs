@@ -9,7 +9,8 @@ using UnityEngine;
 [DefaultExecutionOrder(-100)]
 public class ROSSettings : MonoBehaviour
 {
-    public static ROSSettings Instance { get; private set; }
+    private static ROSSettings _instance;
+    public static ROSSettings Instance { get => _instance != null ? _instance : _instance = FindFirstObjectByType<ROSSettings>(); private set => _instance = value; }
 
     [Header("Commands (ROS -> Sim)")]
     public string SimulationResetTopic = "/simulation/reset";
@@ -34,7 +35,7 @@ public class ROSSettings : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null) { Instance = this; DontDestroyOnLoad(gameObject); }
+        if (_instance == null || _instance == this) { _instance = this; DontDestroyOnLoad(gameObject); }
         else Destroy(gameObject);
     }
 }

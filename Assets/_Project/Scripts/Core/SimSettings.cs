@@ -7,7 +7,8 @@ using UnityEngine;
 [DefaultExecutionOrder(-100)]
 public class SimSettings : MonoBehaviour
 {
-    public static SimSettings Instance { get; private set; }
+    private static SimSettings _instance;
+    public static SimSettings Instance { get => _instance != null ? _instance : _instance = FindFirstObjectByType<SimSettings>(); private set => _instance = value; }
 
     [Header("Vehicle")]
     [Tooltip("The rigidbody every sensor reads from")]
@@ -24,7 +25,7 @@ public class SimSettings : MonoBehaviour
 
     private void Awake()
     {
-        if (Instance == null) { Instance = this; DontDestroyOnLoad(gameObject); }
+        if (_instance == null || _instance == this) { _instance = this; DontDestroyOnLoad(gameObject); }
         else Destroy(gameObject);
     }
 }

@@ -13,7 +13,8 @@ using UnityEngine;
 /// </summary>
 public class ManualControl : MonoBehaviour
 {
-    public static ManualControl Instance { get; private set; }
+    private static ManualControl _instance;
+    public static ManualControl Instance { get => _instance != null ? _instance : _instance = FindFirstObjectByType<ManualControl>(); private set => _instance = value; }
     public bool Active => active;
 
     [Header("Channels (match VehicleActuators layout)")]

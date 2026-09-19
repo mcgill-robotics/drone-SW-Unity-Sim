@@ -8,7 +8,8 @@ using UnityEngine;
 [DefaultExecutionOrder(-100)]
 public class GeoOrigin : MonoBehaviour
 {
-    public static GeoOrigin Instance { get; private set; }
+    private static GeoOrigin _instance;
+    public static GeoOrigin Instance { get => _instance != null ? _instance : _instance = FindFirstObjectByType<GeoOrigin>(); private set => _instance = value; }
 
     [Header("Origin (WGS84)")]
     public double latitude = 36.2130;
@@ -20,14 +21,14 @@ public class GeoOrigin : MonoBehaviour
     public Vector3 magneticFieldNED = new Vector3(0.21f, -0.007f, 0.45f);
 
     private const double EarthRadius = 6378137.0;
-    private double latRad, cosLat;
+    private double cosLat;
+    private double CosLat => cosLat != 0 ? cosLat : cosLat = System.Math.Cos(latitude * Mathf.Deg2Rad);
 
     private void Awake()
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
-        latRad = latitude * Mathf.Deg2Rad;
-        cosLat = System.Math.Cos(latRad);
+        cosLat = System.Math.Cos(latitude * Mathf.Deg2Rad);
     }
 
     /// <summary>Unity world position relative to this object's position (still Unity axes).</summary>
@@ -37,7 +38,7 @@ public class GeoOrigin : MonoBehaviour
     {
         Vector3 d = ToLocal(world);
         lat = latitude + (d.z / EarthRadius) * Mathf.Rad2Deg;
-        lon = longitude + (d.x / (EarthRadius * cosLat)) * Mathf.Rad2Deg;
+        lon = longitude + (d.x / (EarthRadius * CosLat)) * Mathf.Rad2Deg;
         alt = altitude + d.y;
     }
 

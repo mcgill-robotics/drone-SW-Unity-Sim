@@ -6,7 +6,8 @@ using UnityEngine;
 /// </summary>
 public class Wind : MonoBehaviour
 {
-    public static Wind Instance { get; private set; }
+    private static Wind _instance;
+    public static Wind Instance { get => _instance != null ? _instance : _instance = FindFirstObjectByType<Wind>(); private set => _instance = value; }
 
     [Tooltip("Mean wind vector in Unity world axes (m/s), direction the air moves toward")]
     public Vector3 meanWind = Vector3.zero;
