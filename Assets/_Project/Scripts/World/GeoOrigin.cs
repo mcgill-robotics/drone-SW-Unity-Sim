@@ -45,7 +45,7 @@ public class GeoOrigin : MonoBehaviour
     public Vector3 FromGeodetic(double lat, double lon, double alt)
     {
         float north = (float)((lat - latitude) * Mathf.Deg2Rad * EarthRadius);
-        float east = (float)((lon - longitude) * Mathf.Deg2Rad * EarthRadius * cosLat);
+        float east = (float)((lon - longitude) * Mathf.Deg2Rad * EarthRadius * CosLat);
         float up = (float)(alt - altitude);
         return transform.position + new Vector3(east, up, north);
     }
