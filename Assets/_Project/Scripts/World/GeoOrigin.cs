@@ -28,7 +28,28 @@ public class GeoOrigin : MonoBehaviour
     {
         if (Instance != null && Instance != this) { Destroy(gameObject); return; }
         Instance = this;
+        ApplyEnvironmentOverrides();
         cosLat = System.Math.Cos(latitude * Mathf.Deg2Rad);
+    }
+
+    /// <summary>
+    /// With Unity as the simulator, PX4's home comes from the GPS we send, so PX4_HOME_LAT/LON/ALT
+    /// on the PX4 side do nothing. Read the same variables here so drone-2027's instructions
+    /// (e.g. PX4_HOME_LAT=45.5048 for check_lap) still move the world.
+    /// </summary>
+    public void ApplyEnvironmentOverrides()
+    {
+        latitude = EnvDouble("PX4_HOME_LAT", latitude);
+        longitude = EnvDouble("PX4_HOME_LON", longitude);
+        altitude = EnvDouble("PX4_HOME_ALT", altitude);
+        cosLat = 0;
+    }
+
+    private static double EnvDouble(string name, double fallback)
+    {
+        string v = System.Environment.GetEnvironmentVariable(name);
+        return double.TryParse(v, System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture, out double d) ? d : fallback;
     }
 
     /// <summary>Unity world position relative to this object's position (still Unity axes).</summary>

@@ -41,6 +41,28 @@ namespace DroneSim.Tests
         }
 
         [Test]
+        public void Px4HomeEnvironment_MovesOrigin()
+        {
+            try
+            {
+                System.Environment.SetEnvironmentVariable("PX4_HOME_LAT", "45.5048");
+                System.Environment.SetEnvironmentVariable("PX4_HOME_LON", "-73.5772");
+                System.Environment.SetEnvironmentVariable("PX4_HOME_ALT", "30");
+                geo.ApplyEnvironmentOverrides();
+                geo.ToGeodetic(Vector3.zero, out double lat, out double lon, out double alt);
+                Assert.AreEqual(45.5048, lat, 1e-9);
+                Assert.AreEqual(-73.5772, lon, 1e-9);
+                Assert.AreEqual(30.0, alt, 1e-9);
+            }
+            finally
+            {
+                System.Environment.SetEnvironmentVariable("PX4_HOME_LAT", null);
+                System.Environment.SetEnvironmentVariable("PX4_HOME_LON", null);
+                System.Environment.SetEnvironmentVariable("PX4_HOME_ALT", null);
+            }
+        }
+
+        [Test]
         public void MagneticField_NedToUnity()
         {
             geo.magneticFieldNED = new Vector3(0.2f, 0.01f, 0.45f);

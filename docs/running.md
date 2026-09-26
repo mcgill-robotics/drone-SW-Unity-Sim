@@ -45,6 +45,12 @@ gazebo-classic standard_vtol airframe (autostart 1040) is the one we want. Its s
 
 If Unity runs on another machine, set `PX4_SIM_HOSTNAME=<unity host>` for PX4.
 
+`PX4_HOME_LAT`, `PX4_HOME_LON` and `PX4_HOME_ALT` do nothing on the PX4 side here, because
+PX4's home comes from the GPS that Unity sends. Set them in the environment Unity starts from
+(or on `GeoOrigin` under `Managers`) to move the world. The default is the SUAS 2026 field.
+The magnetic field on `GeoOrigin` doesn't follow; set it for the new site from NOAA's
+magnetic field calculator, or PX4's EKF will complain about heading.
+
 QGroundControl finds SITL automatically on UDP 14550. PX4 also starts the uXRCE-DDS client on
 UDP 8888.
 
