@@ -41,7 +41,7 @@ Competition props, scoring, and the real flight area come later, as scenes and d
 
 ## Borrowed from auv-sim-unity
 
-ROS publisher base and clock, IMU with bias random walk, sensor delay buffer, camera publisher with async GPU readback and CameraInfo, ground truth publisher, free and orbit cameras, synthetic data batch runner and YOLO converter.
+ROS publisher base and clock, IMU with bias random walk, sensor delay buffer, camera publisher with async GPU readback and CameraInfo, ground truth publisher, reset manager, free and orbit cameras. The synthetic data batch runner and YOLO converter are still to come.
 
 Left behind: everything underwater.
 
@@ -55,4 +55,5 @@ Left behind: everything underwater.
 
 - [docs/running.md](docs/running.md): how to start Unity, PX4 SITL, and ROS 2 together.
 - [docs/architecture.md](docs/architecture.md): how the pieces connect.
+- [docs/roadmap.md](docs/roadmap.md): what's done, what's next.
 - [docs/suas-2026-rules.md](docs/suas-2026-rules.md): competition reference, not a design input yet.

@@ -17,14 +17,20 @@ Unity is the lockstep master. Each FixedUpdate it sends sensors, waits for actua
 ## Unity project layout
 
 ```
-Assets/_Project/Scripts/
-  Bridge/      MAVLink HIL client and lockstep
-  Vehicle/     Rotor, Wing, AeroBody. Forces only, no control logic
-  Sensors/     ROS publishers from the AUV sim: camera, IMU, ground truth, clock, delay buffer
+Assets/_Project/Scripts/        DroneSim assembly
+  Bridge/      MAVLink v2 codec, HIL server on TCP 4560, lockstep
+  Vehicle/     Rotor, Wing, ControlSurface, VehicleActuators, ManualControl. Forces only
+  Sensors/     ImuModel, delay buffer, and ROS publishers (camera, IMU, ground truth)
   World/       GeoOrigin (lat/lon to local), Wind
-  Core/        Settings, reset manager, HUD
-  SynthData/   Perception randomizers, batch runner, YOLO converter
+  Core/        Settings, ROS clock and publisher base, reset manager
+  UserCamera/  Orbit and free cameras
+  Utils/       Gaussian noise, Gauss-Markov bias
+Assets/Editor/DroneSim/         SceneBuilder generates Flight.unity
+Assets/Tests/EditMode/          Codec, frame, geo and actuator tests
 ```
+
+Not written yet: SynthData (randomizers, batch runner, YOLO converter). See
+[roadmap.md](roadmap.md). The only HUD is the bridge status line drawn with OnGUI.
 
 ## Coordinate frames
 
@@ -37,11 +43,13 @@ One GeoOrigin script owns the lat/lon/alt of the Unity origin and converts both 
 ## Vehicle model
 
 - Rigidbody mass and inertia from the CAD.
-- Rotor: thrust = k * omega^2 along the rotor axis at the mount point, with reaction torque and a first-order spin-up. Four lift rotors, one pusher.
+- Rotor: thrust = max thrust * throttle^2 along the rotor axis at the mount point, with reaction torque and a first-order spin-up. Four lift rotors, one pusher.
+- Control surfaces: a moment about one body axis, scaled by dynamic pressure and deflection. Two ailerons (half the roll authority each) and an elevator.
 - Wing: lift = 0.5 * rho * V^2 * S * CL(alpha), linear up to stall then dropped. Parasitic plus induced drag. Small pitch and roll damping.
 - Wind: constant vector plus gusts, subtracted from the airspeed the wing sees.
 
-Actuator channel order follows PX4's standard_vtol. Mixing stays on the PX4 side.
+Actuator channel order follows PX4's standard_vtol (see the table in [running.md](running.md)).
+Mixing stays on the PX4 side. Rotor spin sign matches `CA_ROTORn_KM`: +1 is CCW from above.
 
 ## Sensors to PX4
 

@@ -17,17 +17,40 @@ Headless compile and scene rebuild:
   -projectPath . -executeMethod DroneSim.Editor.SceneBuilder.Build -logFile build.log
 ```
 
+Edit-mode tests (MAVLink encoding against pymavlink golden frames, frame conversions, geo math,
+actuator scaling). Close the editor first; batchmode can't open a project that's already open.
+
+```bash
+/Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/MacOS/Unity -batchmode -nographics \
+  -projectPath . -runTests -testPlatform EditMode -testResults results.xml -logFile test.log
+```
+
+In the editor: Window > General > Test Runner > EditMode.
+
 ## 2. PX4 SITL
 
 PX4 connects to Unity as a TCP client on port 4560 and runs in lockstep with it.
 
 ```bash
 cd PX4-Autopilot
-make px4_sitl none_standard_vtol
+make px4_sitl                     # build only, launches nothing
+PX4_SIM_MODEL=gazebo-classic_standard_vtol ./build/px4_sitl_default/bin/px4
 ```
 
-`none_` tells PX4 not to launch its own simulator. QGroundControl finds SITL automatically on
-UDP 14550. PX4 also starts the uXRCE-DDS client on UDP 8888.
+PX4 has no `none_standard_vtol` airframe (the only `none_` one is `none_iris`). The
+gazebo-classic standard_vtol airframe (autostart 1040) is the one we want. Its startup runs
+`simulator_mavlink`, which dials TCP 4560. Gazebo itself is only started by
+`make px4_sitl gazebo-classic_standard_vtol`, so running the binary directly skips it. Don't use
+`gz_standard_vtol`, which talks to Gazebo Harmonic over its own transport instead of MAVLink.
+
+If Unity runs on another machine, set `PX4_SIM_HOSTNAME=<unity host>` for PX4.
+
+QGroundControl finds SITL automatically on UDP 14550. PX4 also starts the uXRCE-DDS client on
+UDP 8888.
+
+Unity blocks each physics step until PX4 answers. If PX4 stops answering for three steps, the
+bridge stops waiting until the next controls arrive, and a dropped connection returns it to
+`waiting on TCP 4560`.
 
 ## 3. ROS 2
 
@@ -72,12 +95,21 @@ Subscribed: /simulation/reset (std_msgs/Bool).
 
 ## PX4 channel mapping on the placeholder vehicle
 
-| Channel | Actuator |
-|---|---|
-| 0 to 3 | Lift rotors, quad-x order (FR, RL, FL, RR) |
-| 4 | Pusher |
-| 5 | Aileron |
-| 6 | Elevator |
-| 7 | Rudder |
+Taken from PX4's `1040_gazebo-classic_standard_vtol` airframe (`PWM_MAIN_FUNC1..8`). The same
+table is in code as `StandardVtolChannels`, and a test pins it.
 
-Check this against the actual airframe's control allocation in PX4 before trusting a flight.
+| Channel | Actuator | PX4 range | Notes |
+|---|---|---|---|
+| 0 | Lift rotor front-right | 0..1 | CCW (`CA_ROTOR0_KM` > 0) |
+| 1 | Lift rotor rear-left | 0..1 | CCW |
+| 2 | Lift rotor front-left | 0..1 | CW |
+| 3 | Lift rotor rear-right | 0..1 | CW |
+| 4 | Pusher | 0..1 | |
+| 5 | Left aileron | -1..1 | positive rolls left (`CA_SV_CS0_TRQ_R` = -0.5) |
+| 6 | Right aileron | -1..1 | positive rolls right (`CA_SV_CS1_TRQ_R` = +0.5) |
+| 7 | Elevator | -1..1 | positive pitches nose up |
+
+The airframe has no rudder. PX4's `pwm_out_sim` sends motors as 0..1 and servos as -1..1.
+
+When the real airframe gets its own PX4 config, update `StandardVtolChannels` and this table
+together.
