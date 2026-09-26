@@ -34,6 +34,18 @@ namespace DroneSim.Tests
             Assert.AreEqual(throttle, r.Commanded, 1e-6f);
         }
 
+        [TestCase(0f, 0.15f)]
+        [TestCase(1f, 1f)]
+        [TestCase(0.5f, 0.575f)]
+        public void Rotor_IdleSpeed_MapsZeroToIdle(float px4, float speed)
+        {
+            var r = go.AddComponent<Rotor>();
+            r.channel = StandardVtolChannels.RotorFrontRight;
+            r.idleSpeed = 0.15f;
+            r.Apply(Controls(r.channel, px4), armed: true);
+            Assert.AreEqual(speed, r.Commanded, 1e-6f);
+        }
+
         [Test]
         public void Rotor_Disarmed_IsZero()
         {

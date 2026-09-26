@@ -3,7 +3,8 @@ using UnityEngine;
 /// <summary>
 /// One propeller. Thrust along the local +Y axis of this transform, applied at its position,
 /// with a first-order spin-up lag and a reaction torque about the axis.
-/// PX4's pwm_out_sim sends non-reversible motors as 0..1, so the channel value is the throttle.
+/// PX4's pwm_out_sim sends non-reversible motors as 0..1, so the channel value is the throttle,
+/// raised by idleSpeed when armed the way Gazebo's motor model does.
 ///
 /// Spin direction follows PX4's CA_ROTORn_KM sign: +1 for a CCW rotor (seen from above), whose
 /// reaction torque yaws the body nose-right, which is +Y torque in Unity's left-handed axes.
@@ -18,9 +19,11 @@ public class Rotor : MonoBehaviour, IActuator
     [Tooltip("Reaction torque at full throttle (N m)")] public float maxTorque = 0.3f;
     [Tooltip("+1 for CCW seen from above (PX4 CA_ROTORn_KM > 0), -1 for CW")] public int spinDirection = 1;
     [Tooltip("Spin-up time constant (s)")] public float timeConstant = 0.05f;
+    [Tooltip("Fraction of full speed when armed at zero command (Gazebo's SIM_GZ_EC_MIN / MAX)")]
+    [Range(0f, 0.5f)] public float idleSpeed = 0f;
     [Tooltip("Runtime multiplier used by domain randomization")] public float efficiency = 1f;
 
-    /// <summary>Throttle PX4 is asking for, before the spin-up lag.</summary>
+    /// <summary>Speed PX4 is asking for as a fraction of full, after idle, before the spin-up lag.</summary>
     public float Commanded => commanded;
     public float Throttle { get; private set; }
     public float Thrust { get; private set; }
@@ -32,7 +35,7 @@ public class Rotor : MonoBehaviour, IActuator
 
     public void Apply(float[] controls, bool armed)
     {
-        commanded = armed && channel < controls.Length ? Mathf.Clamp01(controls[channel]) : 0f;
+        commanded = armed && channel < controls.Length ? idleSpeed + (1f - idleSpeed) * Mathf.Clamp01(controls[channel]) : 0f;
     }
 
     public void ResetActuator() { commanded = 0f; Throttle = 0f; Thrust = 0f; }
