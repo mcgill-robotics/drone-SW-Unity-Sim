@@ -18,10 +18,12 @@ against it unchanged.
 
 ## Next: first flight
 
-Steps 1 to 3 work on the X500 (2026-09-26, PX4 v1.17.0 on macOS, `tools/px4_smoke_test.py`).
-Two fixes came out of it: the magnetometer needed noise, because PX4 drops a sensor whose
-reading never changes, and the project needed Run In Background. Next: steps 1 to 3 on the
-quadplane, then 4 and 5. In order:
+Steps 1 to 4 work (2026-09-26, PX4 v1.17.0 on macOS): the X500 and the quadplane hover
+(`tools/px4_smoke_test.py`), and the quadplane transitions, loiters on the wing and comes back
+(`tools/px4_vtol_test.py`). Fixes that came out of it: the magnetometer needed noise, because PX4
+drops a sensor whose reading never changes; the project needed Run In Background; and the pusher
+needed 30 N to reach blend airspeed inside PX4's 6 s window. The wing flies nose-high and sags
+in turns, which points at the placeholder wing. Next: step 5. In order:
 
 1. Connect PX4 SITL (see [running.md](running.md)). Check the status line reaches
    `lockstep=on`, and that QGC shows a sane attitude, heading and GPS fix with the vehicle

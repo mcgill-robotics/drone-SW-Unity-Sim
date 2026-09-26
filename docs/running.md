@@ -106,7 +106,23 @@ python3 tools/px4_smoke_test.py 5
 ```
 
 First run on the X500 (2026-09-26): took off to 5.1 m, held altitude within 5 cm and position
-within 10 cm with attitude inside 1 degree, landed at 0.7 m/s and disarmed itself.
+within 10 cm with attitude inside 1 degree, landed at 0.7 m/s and disarmed itself. The quadplane
+does the same.
+
+On `Flight.unity`, `tools/px4_vtol_test.py` also flies the wing: climb to 40 m, forward
+transition, 60 s of fixed-wing loiter, back-transition, land:
+
+```bash
+python3 tools/px4_vtol_test.py 40 60
+```
+
+First run (2026-09-26): forward transition in about 6 s, reaching 10 m/s; loitered at 10 to
+14.6 m/s on an 80 m circle; back-transitioned and landed 7 m from home. It lost 8 m during the
+transition and flew nose-high (12 to 14 degrees) at about 48% throttle. The placeholder wing is
+too small or too draggy for 6.5 kg; real wing numbers should fix that.
+
+If a run hangs with PX4's log stopped before `Simulator connected`, an old PX4 is still holding
+its lock: `pkill -9 -f px4_sitl_default/bin/px4; rm -f /tmp/px4_lock-0 /tmp/px4-sock-0`.
 
 ## 3. ROS 2
 
