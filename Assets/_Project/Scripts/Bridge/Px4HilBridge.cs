@@ -25,6 +25,8 @@ namespace Bridge
         public bool lockstep = true;
         [Tooltip("Give up waiting for PX4 after this long (ms) and step anyway")]
         public int lockstepTimeoutMs = 1000;
+        [Tooltip("After this many timeouts in a row, stop waiting until PX4 sends controls again")]
+        public int maxConsecutiveTimeouts = 3;
 
         [Header("Vehicle")]
         public ImuModel imu;
@@ -43,13 +45,16 @@ namespace Bridge
         public float baroNoiseHpa = 0.02f;
         public float temperatureC = 25f;
 
-        public bool Connected => client != null && client.Connected;
+        public bool Connected => client != null;
         public bool ReceivedControls { get; private set; }
         public ulong LastControlsTimeUs { get; private set; }
 
         private TcpListener listener;
-        private TcpClient client;
-        private NetworkStream stream;
+        // Swapped by the accept and read threads under connLock, read by the main thread.
+        private volatile TcpClient client;
+        private volatile NetworkStream stream;
+        private readonly object connLock = new object();
+        private int consecutiveTimeouts;
         private Thread acceptThread, readThread;
         private volatile bool running;
         private readonly AutoResetEvent controlsEvent = new AutoResetEvent(false);
@@ -93,9 +98,8 @@ namespace Bridge
                 {
                     var c = listener.AcceptTcpClient();
                     c.NoDelay = true;
-                    var old = client;
-                    client = c;
-                    stream = c.GetStream();
+                    TcpClient old;
+                    lock (connLock) { old = client; stream = c.GetStream(); client = c; }
                     old?.Close();
                     Debug.Log("[PX4] SITL connected");
                     readThread = new Thread(() => ReadLoop(c)) { IsBackground = true, Name = "px4-read" };
@@ -133,7 +137,26 @@ namespace Bridge
                 }
             }
             catch (Exception) { }
-            if (client == c) { Debug.Log("[PX4] SITL disconnected"); ReceivedControls = false; }
+            Drop(c);
+        }
+
+        /// <summary>
+        /// Forget a dead connection so FixedUpdate stops sending and stops waiting on lockstep.
+        /// Safe from any thread and more than once; a newer connection is left alone.
+        /// </summary>
+        private void Drop(TcpClient c)
+        {
+            lock (connLock)
+            {
+                if (c == null || client != c) return;
+                client = null;
+                stream = null;
+            }
+            try { c.Close(); } catch { }
+            lock (controlsLock) { hasPending = false; pendingArmed = false; }
+            ReceivedControls = false;
+            consecutiveTimeouts = 0;
+            Debug.Log($"[PX4] SITL disconnected, waiting on TCP {port}");
         }
 
         private void FixedUpdate()
@@ -151,8 +174,16 @@ namespace Bridge
 
             if (lockstep && ReceivedControls)
             {
-                if (!controlsEvent.WaitOne(lockstepTimeoutMs))
-                    Debug.LogWarning("[PX4] lockstep timeout, stepping without new controls");
+                if (controlsEvent.WaitOne(lockstepTimeoutMs)) consecutiveTimeouts = 0;
+                else if (++consecutiveTimeouts >= maxConsecutiveTimeouts)
+                {
+                    // PX4 is stuck or gone without closing the socket. Stop blocking the editor;
+                    // lockstep re-engages when the next controls arrive.
+                    ReceivedControls = false;
+                    consecutiveTimeouts = 0;
+                    Debug.LogWarning($"[PX4] no controls for {maxConsecutiveTimeouts} steps, lockstep paused");
+                }
+                else Debug.LogWarning("[PX4] lockstep timeout, stepping without new controls");
             }
             else if (!ReceivedControls && hasPending)
             {
@@ -229,7 +260,7 @@ namespace Bridge
             var s = stream;
             if (s == null) return;
             try { s.Write(MavlinkCodec.Pack(id, crc, payload, seq++, SysId, CompId)); }
-            catch (Exception) { }
+            catch (Exception) { Drop(client); }
         }
 
         /// <summary>Unity body (x right, y up, z forward) to FRD (x forward, y right, z down).</summary>
