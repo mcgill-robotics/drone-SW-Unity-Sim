@@ -1,59 +1,54 @@
 # drone-unity-sim
 
-Unity simulator for the McGill Robotics drone team. A physics and camera plant for PX4 SITL, so our real autonomy stack can fly in a fake world.
-
-## Why
-
-Field time is scarce and the airframe is expensive to crash. Most of what we write only gets tested by flying. A sim lets us fly it hundreds of times a day, on a laptop, and break nothing.
-
-The AUV team built the same thing for RoboSub in Unity. We borrow their reusable parts and build the aerial parts fresh.
-
-## The one big idea: PX4 stays in the loop
-
-The AUV sim skips the autopilot and applies forces straight from ROS. That works for them because their whole control stack is custom.
-
-Ours flies PX4 on a Pixhawk, with ROS 2 on the Jetson talking to it over uXRCE-DDS. If the sim bypasses PX4, it tests nothing we wrote. So Unity plays the role Gazebo plays in the stock PX4 setup: it is the physics plant for PX4 SITL, and everything above the autopilot runs unchanged.
+A Unity simulator for PX4. Unity does the physics, sensors and cameras; PX4 SITL runs the real
+flight code on top, the same way it would with Gazebo. Anything that talks to PX4 (QGroundControl,
+a ROS 2 stack over uXRCE-DDS, MAVLink scripts) works against it unchanged.
 
 ```
-QGroundControl ──MAVLink UDP 14550──┐
-                                    ▼
-Unity ──HIL MAVLink TCP 4560──► PX4 SITL ──uXRCE-DDS UDP 8888──► ROS 2 (Jetson stack)
-  │                                                                     ▲
-  └────────── cameras, ground truth over ROS TCP connector ─────────────┘
+QGroundControl ── MAVLink UDP 14550 ──┐
+MAVLink scripts ─ MAVLink UDP 14540 ──┤
+                                      ▼
+Unity ──── HIL MAVLink, TCP 4560 ──► PX4 SITL ── uXRCE-DDS, UDP 8888 ──► ROS 2
+  │                                                                       ▲
+  └──────── cameras, IMU, ground truth, /clock (ROS TCP endpoint) ────────┘
 ```
 
-- Unity sends HIL_SENSOR, HIL_GPS, HIL_STATE_QUATERNION each physics tick, receives HIL_ACTUATOR_CONTROLS, runs in lockstep.
-- PX4 SITL with the standard VTOL airframe. Its EKF, mission logic, transition, and failsafes are real.
-- The ROS 2 stack sees the same /fmu topics it sees on the real drone.
-- Unity streams camera images and ground truth to ROS 2 for the vision team.
+## Quick start
 
-## What it is
+1. Open the project in Unity 6.6 and play `Assets/_Project/Scenes/FlightX500.unity`.
+2. Build PX4 v1.17.0 SITL once, then start it (details in [docs/running.md](docs/running.md)):
+   ```bash
+   PX4_SIM_MODEL=none_iris ./build/px4_sitl_default/bin/px4 -d
+   ```
+3. The overlay in Unity switches to `PX4 SITL: connected lockstep=on`.
+4. Fly it: open QGroundControl, or run `python3 tools/px4_flight_test.py hover`.
 
-- A VTOL fixed-wing rigidbody: lift rotors, a pusher, a wing. Simple dynamics, PX4 does the controlling.
-- Sensors PX4 needs, with noise: IMU, mag, baro, GPS.
-- Cameras published to ROS 2 with correct intrinsics.
-- A flat world with a geo origin so lat/lon means something.
-- Wind.
-- A reset topic so runs can be scripted.
-- Synthetic training images later. The AUV team's Perception package does not compile on Unity 6.6, so that pipeline needs a port or a replacement before it comes over.
+For the quadplane, play `Flight.unity` and use `PX4_SIM_MODEL=gazebo-classic_standard_vtol`.
 
-Competition props, scoring, and the real flight area come later, as scenes and data on top of this. See [docs/suas-2026-rules.md](docs/suas-2026-rules.md) for what those will eventually need.
+## What's here
 
-## Borrowed from auv-sim-unity
+| Path | What |
+|---|---|
+| `Assets/_Project/Scripts/` | The sim, one `DroneSim` assembly: PX4 bridge, vehicle physics, sensors, ROS publishers |
+| `Assets/Editor/DroneSim/SceneBuilder.cs` | Generates both scenes and holds every vehicle number. Edit this, not the scenes |
+| `Assets/Tests/EditMode/` | Unit tests: MAVLink encoding, frame conversions, geo math, magnetic model, actuators |
+| `tools/px4_flight_test.py` | Scripted hover or VTOL flight through PX4 with pass/fail |
+| `missions/` | Example QGroundControl mission for the quadplane |
+| `docs/` | [running.md](docs/running.md) to set up and run, [architecture.md](docs/architecture.md) for how it works |
 
-ROS publisher base and clock, IMU with bias random walk, sensor delay buffer, camera publisher with async GPU readback and CameraInfo, ground truth publisher, reset manager, free and orbit cameras. The synthetic data batch runner and YOLO converter are still to come.
+## Status
 
-Left behind: everything underwater.
+Works: PX4 v1.17.0 SITL in lockstep with both vehicles. The X500 hovers, and the quadplane takes
+off, transitions to wing-borne flight, flies missions, transitions back and lands. Tested on
+macOS (Apple silicon).
 
-## Stack
+Not done yet:
 
-- Unity 6.6, HDRP.
-- PX4 SITL, standard_vtol airframe.
-- ROS 2 Humble, uXRCE-DDS agent, Unity ROS TCP connector for images.
+- The quadplane's mass, thrust and aerodynamics are placeholders, not our aircraft. It flies
+  nose-high on the wing and loses a few metres in the transition.
+- The world is a flat plane with a runway. No terrain, obstacles or targets.
+- No synthetic training-data pipeline.
+- No CI. Tests run in the editor.
 
-## Docs
-
-- [docs/running.md](docs/running.md): how to start Unity, PX4 SITL, and ROS 2 together.
-- [docs/architecture.md](docs/architecture.md): how the pieces connect.
-- [docs/roadmap.md](docs/roadmap.md): what's done, what's next.
-- [docs/suas-2026-rules.md](docs/suas-2026-rules.md): competition reference, not a design input yet.
+Parts of the ROS side (publisher base, clock, IMU noise model, camera readback, reset) come from
+the AUV team's auv-sim-unity.

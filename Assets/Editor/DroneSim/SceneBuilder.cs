@@ -12,8 +12,7 @@ namespace DroneSim.Editor
     /// Menu: Drone Sim > Build Flight Scenes. Also runnable headless via -executeMethod.
     ///
     /// Flight.unity flies the quadplane (PX4 airframe gazebo-classic_standard_vtol).
-    /// FlightX500.unity flies PX4's X500 quad (PX4 airframe none_iris), the vehicle drone-2026
-    /// and drone-2027 tested against in Gazebo.
+    /// FlightX500.unity flies PX4's X500 quad (PX4 airframe none_iris), PX4's standard Gazebo quad.
     /// </summary>
     public static class SceneBuilder
     {
