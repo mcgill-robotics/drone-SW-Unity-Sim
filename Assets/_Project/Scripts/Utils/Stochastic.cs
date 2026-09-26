@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace Utils
+namespace DroneSim
 {
     /// <summary>Gaussian noise helpers. Ported from auv-sim-unity.</summary>
     public static class Stochastic

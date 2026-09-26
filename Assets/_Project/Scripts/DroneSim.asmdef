@@ -1,6 +1,6 @@
 {
     "name": "DroneSim",
-    "rootNamespace": "",
+    "rootNamespace": "DroneSim",
     "references": [
         "Unity.Robotics.ROSTCPConnector",
         "Unity.Robotics.ROSTCPConnector.Messages",

@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Bridge
+namespace DroneSim
 {
     /// <summary>
     /// Minimal MAVLink v2 framing: enough to speak the PX4 simulator HIL API without a

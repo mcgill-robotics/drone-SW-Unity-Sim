@@ -3,7 +3,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Unity.Robotics.ROSTCPConnector;
-using Bridge;
+using DroneSim;
 
 namespace DroneSim.Editor
 {

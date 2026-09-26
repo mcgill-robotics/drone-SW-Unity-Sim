@@ -3,9 +3,8 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using UnityEngine;
-using Utils;
 
-namespace Bridge
+namespace DroneSim
 {
     /// <summary>
     /// Makes Unity the physics plant for PX4 SITL over the simulator MAVLink API.
