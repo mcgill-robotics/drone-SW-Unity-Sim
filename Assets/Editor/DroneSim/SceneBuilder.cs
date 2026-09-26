@@ -98,6 +98,9 @@ namespace DroneSim.Editor
             if (cam != null)
             {
                 cam.transform.position = new Vector3(-6f, 3f, -8f);
+                // Draw after the onboard cameras so the Game view shows the chase view. In play
+                // mode the onboard cameras render to textures, but in edit mode they would win.
+                cam.GetComponent<Camera>().depth = 10;
                 var orbit = cam.AddComponent<OrbitFollowCamera>();
                 orbit.distance = 10f;
             }
@@ -222,12 +225,13 @@ namespace DroneSim.Editor
                 r.idleSpeed = 0.15f;
             }
 
-            AddSensors(root, downCamera: new Vector3(0, -0.05f, 0.05f), forwardCamera: new Vector3(0, 0.03f, 0.12f));
+            // Forward camera under the body plate, tilted 20 degrees down so the props stay out of frame.
+            AddSensors(root, downCamera: new Vector3(0, -0.05f, 0.05f), forwardCamera: new Vector3(0, -0.06f, 0.1f), forwardPitchDeg: 20f);
             return root;
         }
 
         /// <summary>IMU at the body origin, ground truth, and the down and forward cameras.</summary>
-        static void AddSensors(GameObject root, Vector3 downCamera, Vector3 forwardCamera)
+        static void AddSensors(GameObject root, Vector3 downCamera, Vector3 forwardCamera, float forwardPitchDeg = 0f)
         {
             var imuGo = new GameObject("IMU");
             imuGo.transform.SetParent(root.transform, false);
@@ -239,7 +243,7 @@ namespace DroneSim.Editor
             gt.AddComponent<GroundTruthPublisher>().PublishRate = 50f;
 
             AddCamera(root, "DownCamera", downCamera, Quaternion.Euler(90, 0, 0), "/sim/down_cam/image_raw", "down_camera_optical_frame", 60f);
-            AddCamera(root, "ForwardCamera", forwardCamera, Quaternion.identity, "/sim/forward_cam/image_raw", "forward_camera_optical_frame", 70f);
+            AddCamera(root, "ForwardCamera", forwardCamera, Quaternion.Euler(forwardPitchDeg, 0, 0), "/sim/forward_cam/image_raw", "forward_camera_optical_frame", 70f);
         }
 
         static void Mesh(GameObject parent, string name, PrimitiveType type, Vector3 pos, Quaternion rot, Vector3 scale)
