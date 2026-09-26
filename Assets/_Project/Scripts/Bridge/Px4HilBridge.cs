@@ -55,7 +55,6 @@ namespace DroneSim
 
         public bool Connected => client != null;
         public bool ReceivedControls { get; private set; }
-        public ulong LastControlsTimeUs { get; private set; }
 
         private TcpListener listener;
         // Swapped by the accept and read threads under connLock, read by the main thread.
@@ -132,12 +131,11 @@ namespace DroneSim
                     parser.Feed(buf, n, (id, payload) =>
                     {
                         if (id != Msg.HilActuatorControls) return;
-                        Msg.DecodeHilActuatorControls(payload, tmp, out ulong t, out ulong flags, out byte mode);
+                        Msg.DecodeHilActuatorControls(payload, tmp, out _, out _, out byte mode);
                         lock (controlsLock)
                         {
                             Array.Copy(tmp, pendingControls, 16);
                             pendingArmed = (mode & 0x80) != 0;
-                            LastControlsTimeUs = t;
                             hasPending = true;
                         }
                         controlsEvent.Set();

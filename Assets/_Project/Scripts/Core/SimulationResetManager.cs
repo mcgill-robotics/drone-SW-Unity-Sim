@@ -51,8 +51,6 @@ namespace DroneSim
             DoReset();
         }
 
-        public void RequestReset() => resetRequested = true;
-
         private void DoReset()
         {
             rb.position = startPos;

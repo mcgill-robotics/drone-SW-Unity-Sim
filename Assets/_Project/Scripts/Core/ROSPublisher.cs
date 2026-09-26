@@ -8,7 +8,7 @@ namespace DroneSim
     /// from FixedUpdate. Subclasses that need their own cadence set useBaseRateLimiting = false.
     /// Ported from auv-sim-unity.
     /// </summary>
-    public abstract class ROSPublisher : MonoBehaviour, IROSPublisher
+    public abstract class ROSPublisher : MonoBehaviour
     {
         [Header("ROS")]
         [Tooltip("Target publish rate in Hz (only used when the base class drives timing)")]
@@ -26,13 +26,10 @@ namespace DroneSim
             }
         }
 
-        public bool IsActive => shouldPublish;
-
         protected bool useBaseRateLimiting = true;
         protected ROSConnection ros;
         protected float timeBetweenPublishes;
         protected float timeSinceLastPublish;
-        protected bool shouldPublish = true;
 
         protected virtual void Start()
         {
@@ -45,7 +42,7 @@ namespace DroneSim
         {
             if (!useBaseRateLimiting) return;
             timeSinceLastPublish += Time.fixedDeltaTime;
-            if (shouldPublish && SimSettings.PublishROS && timeSinceLastPublish >= timeBetweenPublishes)
+            if (SimSettings.PublishROS && timeSinceLastPublish >= timeBetweenPublishes)
             {
                 PublishMessage();
                 timeSinceLastPublish = 0f;
@@ -54,6 +51,5 @@ namespace DroneSim
 
         protected abstract void RegisterPublisher();
         public abstract void PublishMessage();
-        public void SetActive(bool active) => shouldPublish = active;
     }
 }

@@ -11,14 +11,6 @@ namespace DroneSim
     [DefaultExecutionOrder(-75)]
     public class SensorDelayBuffer : MonoBehaviour, IResettable
     {
-        [Tooltip("Sensor latency in seconds")]
-        public float delayTime = 0.02f;
-
-        [Header("Randomization")]
-        public bool randomizeLatencyOnReset = false;
-        public float minDelayTime = 0.01f;
-        public float maxDelayTime = 0.05f;
-
         private Rigidbody rb;
         private readonly List<RigidbodyStateSample> buffer = new List<RigidbodyStateSample>();
 
@@ -33,7 +25,6 @@ namespace DroneSim
 
         public void ResetState()
         {
-            if (randomizeLatencyOnReset) delayTime = Random.Range(minDelayTime, maxDelayTime);
             buffer.Clear();
             if (rb != null) RecordSample(Time.time);
         }
@@ -57,9 +48,8 @@ namespace DroneSim
             });
         }
 
-        public RigidbodyStateSample GetDelayedState(float delaySeconds = -1f)
+        public RigidbodyStateSample GetDelayedState(float delaySeconds)
         {
-            if (delaySeconds < 0f) delaySeconds = delayTime;
             if (buffer.Count == 0)
             {
                 return rb != null
@@ -76,13 +66,6 @@ namespace DroneSim
                 if (d < minDiff) { minDiff = d; best = i; } else break;
             }
             return buffer[best];
-        }
-
-        /// <summary>Velocity of a point fixed to the body at a local offset, from the delayed sample.</summary>
-        public Vector3 GetDelayedVelocityAtLocalOffset(Vector3 localOffset, float delaySeconds = -1f)
-        {
-            var s = GetDelayedState(delaySeconds);
-            return s.linearVelocity + Vector3.Cross(s.angularVelocity, s.rotation * localOffset);
         }
     }
 

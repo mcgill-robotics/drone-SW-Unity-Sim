@@ -76,7 +76,7 @@ namespace DroneSim
 
         protected override void FixedUpdate()
         {
-            if (!SimSettings.PublishROS || !shouldPublish || reading) return;
+            if (!SimSettings.PublishROS || reading) return;
             timeSinceLastPublish += Time.fixedDeltaTime;
             if (timeSinceLastPublish < timeBetweenPublishes) return;
             timeSinceLastPublish = 0f;
