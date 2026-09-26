@@ -124,6 +124,29 @@ too small or too draggy for 6.5 kg; real wing numbers should fix that.
 If a run hangs with PX4's log stopped before `Simulator connected`, an old PX4 is still holding
 its lock: `pkill -9 -f px4_sitl_default/bin/px4; rm -f /tmp/px4_lock-0 /tmp/px4-sock-0`.
 
+## QGroundControl
+
+QGC talks to PX4, not to Unity. PX4 SITL sends MAVLink to UDP 14550 on localhost, which is
+where QGC listens, so QGC connects by itself once PX4 is up. The test scripts use 14540, so both
+can be connected at once. To run QGC on another machine, set `MAV_0_BROADCAST 1` in PX4 or add
+a UDP comm link in QGC.
+
+First-run preferences: firmware PX4 Pro, vehicle VTOL (or no preference), metric units. SUAS
+rules are in feet: the 150 to 400 ft band is 46 to 122 m.
+
+`missions/vtol_flyaround.plan` is the same flight as `px4_vtol_test.py`, flown as a mission on
+`Flight.unity`: VTOL takeoff to 50 m, transition heading north, a lap of about 1.2 km on the
+wing around home, back-transition on the approach, land at home. To fly it:
+
+1. Unity: play `Flight.unity`. Start PX4 with `gazebo-classic_standard_vtol`.
+2. QGC: wait for "Ready To Fly" and the vehicle on the map at the SUAS field.
+3. Plan view: File > Open, pick the plan, then Upload.
+4. Fly view: slide "Start Mission". PX4 arms, takes off and flies it; it disarms after landing.
+
+Change mode, Return, Land or Transition from the Fly view at any time. Without a joystick,
+position mode needs Application Settings > General > Virtual Joystick. Flight logs (`.ulg`) land
+in `PX4-Autopilot/build/px4_sitl_default/rootfs/log/`, and QGC can download them too.
+
 ## 3. ROS 2
 
 The PX4 side of ROS 2. Use Micro-XRCE-DDS-Agent v2.4.2; v3.x doesn't work with PX4's client.
