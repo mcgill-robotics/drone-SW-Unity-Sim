@@ -9,7 +9,7 @@ using UnityEngine;
 public class GeoOrigin : MonoBehaviour
 {
     private static GeoOrigin _instance;
-    public static GeoOrigin Instance { get => _instance != null ? _instance : _instance = FindFirstObjectByType<GeoOrigin>(); private set => _instance = value; }
+    public static GeoOrigin Instance { get => _instance != null ? _instance : _instance = FindAnyObjectByType<GeoOrigin>(); private set => _instance = value; }
 
     [Header("Origin (WGS84)")]
     public double latitude = 36.2130;

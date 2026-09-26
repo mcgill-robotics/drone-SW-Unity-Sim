@@ -10,7 +10,7 @@ using UnityEngine;
 public class ROSSettings : MonoBehaviour
 {
     private static ROSSettings _instance;
-    public static ROSSettings Instance { get => _instance != null ? _instance : _instance = FindFirstObjectByType<ROSSettings>(); private set => _instance = value; }
+    public static ROSSettings Instance { get => _instance != null ? _instance : _instance = FindAnyObjectByType<ROSSettings>(); private set => _instance = value; }
 
     [Header("Commands (ROS -> Sim)")]
     public string SimulationResetTopic = "/simulation/reset";

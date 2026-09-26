@@ -8,7 +8,7 @@ using UnityEngine;
 public class SimSettings : MonoBehaviour
 {
     private static SimSettings _instance;
-    public static SimSettings Instance { get => _instance != null ? _instance : _instance = FindFirstObjectByType<SimSettings>(); private set => _instance = value; }
+    public static SimSettings Instance { get => _instance != null ? _instance : _instance = FindAnyObjectByType<SimSettings>(); private set => _instance = value; }
 
     [Header("Vehicle")]
     [Tooltip("The rigidbody every sensor reads from")]
