@@ -25,7 +25,7 @@ Assets/_Project/Scripts/        DroneSim assembly
   Core/        Settings, ROS clock and publisher base, reset manager
   UserCamera/  Orbit and free cameras
   Utils/       Gaussian noise, Gauss-Markov bias
-Assets/Editor/DroneSim/         SceneBuilder generates Flight.unity
+Assets/Editor/DroneSim/         SceneBuilder generates Flight.unity (quadplane) and FlightX500.unity
 Assets/Tests/EditMode/          Codec, frame, geo and actuator tests
 ```
 

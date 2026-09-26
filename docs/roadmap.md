@@ -7,8 +7,9 @@ against it unchanged.
 
 - MAVLink HIL bridge on TCP 4560 with lockstep. HIL_SENSOR at 250 Hz, HIL_GPS at 10 Hz,
   HIL_STATE_QUATERNION at 50 Hz. Encoding is checked against pymavlink golden frames.
-- Placeholder standard VTOL: four lift rotors, pusher, wing, two ailerons, elevator, wired to
-  PX4's standard_vtol channels with PX4's output scaling.
+- Placeholder quadplane at 6.5 kg with 16 inch props: four lift rotors, pusher, wing, two
+  ailerons, elevator, wired to PX4's standard_vtol channels with PX4's output scaling.
+- PX4's X500 quad from its Gazebo model, as a like-for-like Gazebo replacement.
 - IMU, mag, baro, GPS with noise. Geo origin on the SUAS 2026 field.
 - Wind with gusts. Reset from `R` or `/simulation/reset`, with optional randomization.
 - Cameras, IMU, ground truth and `/clock` to ROS 2.
@@ -17,7 +18,9 @@ against it unchanged.
 
 ## Next: first flight
 
-The code has not flown with PX4 yet. In order:
+The code has not flown with PX4 yet. Do steps 1 to 3 on the X500 first: it's the simplest
+vehicle and its numbers are known, so a failure there points at the bridge, not the airframe.
+Then repeat them on the quadplane. In order:
 
 1. Connect PX4 SITL (see [running.md](running.md)). Check the status line reaches
    `lockstep=on`, and that QGC shows a sane attitude, heading and GPS fix with the vehicle
@@ -27,7 +30,7 @@ The code has not flown with PX4 yet. In order:
    frame conversion, or rotor order. If it hovers but drifts or oscillates, tune the vehicle
    numbers.
 4. Transition to fixed-wing, fly a short mission, back-transition, land.
-5. Replay the same mission through the ROS 2 stack on uXRCE-DDS.
+5. Run drone-2027's flight-check ladder against the X500, then the quadplane.
 
 Write down what broke in each step. The answers belong in the docs, not in someone's head.
 

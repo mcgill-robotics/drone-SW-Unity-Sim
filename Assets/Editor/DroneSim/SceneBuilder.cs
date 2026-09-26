@@ -8,12 +8,17 @@ using Bridge;
 namespace DroneSim.Editor
 {
     /// <summary>
-    /// Builds the Flight scene from code so the whole setup is reviewable and reproducible.
-    /// Menu: Drone Sim > Build Flight Scene. Also runnable headless via -executeMethod.
+    /// Builds the flight scenes from code so the whole setup is reviewable and reproducible.
+    /// Menu: Drone Sim > Build Flight Scenes. Also runnable headless via -executeMethod.
+    ///
+    /// Flight.unity flies the quadplane (PX4 airframe gazebo-classic_standard_vtol).
+    /// FlightX500.unity flies PX4's X500 quad (PX4 airframe none_iris), the vehicle drone-2026
+    /// and drone-2027 tested against in Gazebo.
     /// </summary>
     public static class SceneBuilder
     {
-        const string ScenePath = "Assets/_Project/Scenes/Flight.unity";
+        const string QuadplaneScenePath = "Assets/_Project/Scenes/Flight.unity";
+        const string X500ScenePath = "Assets/_Project/Scenes/FlightX500.unity";
         /// <summary>Lift and pusher props are 16 inch.</summary>
         const float PropDiameter = 16f * 0.0254f;
         /// <summary>Expected takeoff weight is 6 to 7 kg.</summary>
@@ -26,8 +31,20 @@ namespace DroneSim.Editor
         /// <summary>Reaction torque per newton of thrust, the ratio PX4's Gazebo models use.</summary>
         const float RotorMomentRatio = 0.016f;
 
-        [MenuItem("Drone Sim/Build Flight Scene")]
+        [MenuItem("Drone Sim/Build Flight Scenes")]
         public static void Build()
+        {
+            BuildQuadplaneScene();
+            BuildX500Scene();
+        }
+
+        [MenuItem("Drone Sim/Build Quadplane Scene")]
+        public static void BuildQuadplaneScene() => BuildScene(QuadplaneScenePath, BuildQuadplane, spawnHeight: 0.3f);
+
+        [MenuItem("Drone Sim/Build X500 Scene")]
+        public static void BuildX500Scene() => BuildScene(X500ScenePath, BuildX500, spawnHeight: 0.25f);
+
+        static void BuildScene(string path, System.Func<GameObject> buildVehicle, float spawnHeight)
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
 
@@ -36,10 +53,8 @@ namespace DroneSim.Editor
             ground.name = "Ground";
             ground.transform.localScale = new Vector3(400f, 1f, 400f);
             ground.isStatic = true;
-            var groundMat = new Material(Shader.Find("HDRP/Lit"));
-            groundMat.color = new Color(0.35f, 0.45f, 0.25f);
-            AssetDatabase.CreateAsset(groundMat, "Assets/_Project/Materials/Ground.mat");
-            ground.GetComponent<Renderer>().sharedMaterial = groundMat;
+            ground.GetComponent<Renderer>().sharedMaterial =
+                GetOrCreateMaterial("Assets/_Project/Materials/Ground.mat", new Color(0.35f, 0.45f, 0.25f));
 
             // Runway strip for a visual reference.
             var runway = GameObject.CreatePrimitive(PrimitiveType.Cube);
@@ -47,10 +62,8 @@ namespace DroneSim.Editor
             runway.transform.position = new Vector3(0f, 0.02f, 60f);
             runway.transform.localScale = new Vector3(12f, 0.04f, 150f);
             runway.isStatic = true;
-            var runwayMat = new Material(Shader.Find("HDRP/Lit"));
-            runwayMat.color = new Color(0.3f, 0.3f, 0.32f);
-            AssetDatabase.CreateAsset(runwayMat, "Assets/_Project/Materials/Runway.mat");
-            runway.GetComponent<Renderer>().sharedMaterial = runwayMat;
+            runway.GetComponent<Renderer>().sharedMaterial =
+                GetOrCreateMaterial("Assets/_Project/Materials/Runway.mat", new Color(0.3f, 0.3f, 0.32f));
 
             // Sun.
             var light = GameObject.Find("Directional Light");
@@ -62,7 +75,7 @@ namespace DroneSim.Editor
             var settings = managers.AddComponent<SimSettings>();
             managers.AddComponent<ROSClock>();
             managers.AddComponent<SimulationResetManager>();
-            var geo = managers.AddComponent<GeoOrigin>();
+            managers.AddComponent<GeoOrigin>();
             managers.AddComponent<Wind>();
             managers.AddComponent<ManualControl>();
             var ros = managers.AddComponent<ROSConnection>();
@@ -71,8 +84,8 @@ namespace DroneSim.Editor
             ros.ConnectOnStart = true;
 
             // Vehicle.
-            var vehicle = BuildVehicle();
-            vehicle.transform.position = new Vector3(0f, 0.3f, 0f);
+            var vehicle = buildVehicle();
+            vehicle.transform.position = new Vector3(0f, spawnHeight, 0f);
             settings.vehicle = vehicle.GetComponent<Rigidbody>();
 
             var bridge = managers.AddComponent<Px4HilBridge>();
@@ -90,9 +103,19 @@ namespace DroneSim.Editor
             }
 
             System.IO.Directory.CreateDirectory("Assets/_Project/Scenes");
-            EditorSceneManager.SaveScene(scene, ScenePath);
+            EditorSceneManager.SaveScene(scene, path);
             AssetDatabase.SaveAssets();
-            Debug.Log($"[SceneBuilder] Saved {ScenePath}");
+            Debug.Log($"[SceneBuilder] Saved {path}");
+        }
+
+        /// <summary>Reuse the material if it exists so rebuilding doesn't rewrite the asset.</summary>
+        static Material GetOrCreateMaterial(string path, Color color)
+        {
+            var mat = AssetDatabase.LoadAssetAtPath<Material>(path);
+            if (mat != null) return mat;
+            mat = new Material(Shader.Find("HDRP/Lit")) { color = color };
+            AssetDatabase.CreateAsset(mat, path);
+            return mat;
         }
 
         /// <summary>
@@ -101,7 +124,7 @@ namespace DroneSim.Editor
         /// StandardVtolChannels. That airframe has no rudder; the wing's cnBeta gives weathercock
         /// stability instead.
         /// </summary>
-        static GameObject BuildVehicle()
+        static GameObject BuildQuadplane()
         {
             var root = new GameObject("Vehicle");
             var rb = root.AddComponent<Rigidbody>();
@@ -148,7 +171,64 @@ namespace DroneSim.Editor
             AddSurface(root, "AileronRight", StandardVtolChannels.AileronRight, ControlSurface.Axis.Roll, 0.015f);
             AddSurface(root, "Elevator", StandardVtolChannels.Elevator, ControlSurface.Axis.Pitch, 0.02f);
 
-            // Sensors.
+            AddSensors(root, downCamera: new Vector3(0, -0.08f, 0.1f), forwardCamera: new Vector3(0, 0.05f, 0.35f));
+            return root;
+        }
+
+        /// <summary>
+        /// PX4's X500 quad, with the numbers from its Gazebo model (PX4-gazebo-models x500):
+        /// 2.0 kg, motors on a 0.174 m square, 8.55 N max thrust each (motorConstant 8.54858e-6 at
+        /// 1000 rad/s), moment 0.016 N m per N, idle at 15% speed (SIM_GZ_EC_MIN 150 of 1000).
+        /// Motor order is PX4 quad-x, the same as the quadplane's lift rotors.
+        /// </summary>
+        static GameObject BuildX500()
+        {
+            const float maxThrust = 8.54858e-6f * 1000f * 1000f;
+            const float propDiameter = 0.28f;
+
+            var root = new GameObject("Vehicle");
+            var rb = root.AddComponent<Rigidbody>();
+            rb.mass = 2.0f;
+            rb.linearDamping = 0f;
+            rb.angularDamping = 0.05f;
+            rb.interpolation = RigidbodyInterpolation.Interpolate;
+            rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
+            rb.inertiaTensor = new Vector3(0.02167f, 0.04f, 0.02167f); // Unity x = pitch, y = yaw, z = roll
+            rb.inertiaTensorRotation = Quaternion.identity;
+
+            // Body plate down to the bottom of the landing skids.
+            var col = root.AddComponent<BoxCollider>();
+            col.center = new Vector3(0f, -0.1f, 0f);
+            col.size = new Vector3(0.35f, 0.26f, 0.35f);
+
+            root.AddComponent<VehicleActuators>();
+            root.AddComponent<SensorDelayBuffer>();
+
+            Mesh(root, "Body", PrimitiveType.Cube, new Vector3(0, 0.007f, 0), Quaternion.identity, new Vector3(0.2f, 0.05f, 0.2f));
+            Mesh(root, "ArmA", PrimitiveType.Cube, new Vector3(0, 0.03f, 0), Quaternion.Euler(0, 45, 0), new Vector3(0.02f, 0.02f, 0.5f));
+            Mesh(root, "ArmB", PrimitiveType.Cube, new Vector3(0, 0.03f, 0), Quaternion.Euler(0, -45, 0), new Vector3(0.02f, 0.02f, 0.5f));
+            Mesh(root, "SkidL", PrimitiveType.Cube, new Vector3(-0.132f, -0.22f, 0), Quaternion.identity, new Vector3(0.015f, 0.015f, 0.25f));
+            Mesh(root, "SkidR", PrimitiveType.Cube, new Vector3(0.132f, -0.22f, 0), Quaternion.identity, new Vector3(0.015f, 0.015f, 0.25f));
+
+            AddRotor(root, "RotorFR", StandardVtolChannels.RotorFrontRight, new Vector3(0.174f, 0.06f, 0.174f), Vector3.up, +1, propDiameter);
+            AddRotor(root, "RotorRL", StandardVtolChannels.RotorRearLeft, new Vector3(-0.174f, 0.06f, -0.174f), Vector3.up, +1, propDiameter);
+            AddRotor(root, "RotorFL", StandardVtolChannels.RotorFrontLeft, new Vector3(-0.174f, 0.06f, 0.174f), Vector3.up, -1, propDiameter);
+            AddRotor(root, "RotorRR", StandardVtolChannels.RotorRearRight, new Vector3(0.174f, 0.06f, -0.174f), Vector3.up, -1, propDiameter);
+            foreach (var r in root.GetComponentsInChildren<Rotor>())
+            {
+                r.maxThrust = maxThrust;
+                r.maxTorque = maxThrust * RotorMomentRatio;
+                r.timeConstant = 0.02f; // Gazebo: 0.0125 s up, 0.025 s down
+                r.idleSpeed = 0.15f;
+            }
+
+            AddSensors(root, downCamera: new Vector3(0, -0.05f, 0.05f), forwardCamera: new Vector3(0, 0.03f, 0.12f));
+            return root;
+        }
+
+        /// <summary>IMU at the body origin, ground truth, and the down and forward cameras.</summary>
+        static void AddSensors(GameObject root, Vector3 downCamera, Vector3 forwardCamera)
+        {
             var imuGo = new GameObject("IMU");
             imuGo.transform.SetParent(root.transform, false);
             imuGo.AddComponent<ImuModel>();
@@ -158,10 +238,8 @@ namespace DroneSim.Editor
             gt.transform.SetParent(root.transform, false);
             gt.AddComponent<GroundTruthPublisher>().PublishRate = 50f;
 
-            AddCamera(root, "DownCamera", new Vector3(0, -0.08f, 0.1f), Quaternion.Euler(90, 0, 0), "/sim/down_cam/image_raw", "down_camera_optical_frame", 60f);
-            AddCamera(root, "ForwardCamera", new Vector3(0, 0.05f, 0.35f), Quaternion.identity, "/sim/forward_cam/image_raw", "forward_camera_optical_frame", 70f);
-
-            return root;
+            AddCamera(root, "DownCamera", downCamera, Quaternion.Euler(90, 0, 0), "/sim/down_cam/image_raw", "down_camera_optical_frame", 60f);
+            AddCamera(root, "ForwardCamera", forwardCamera, Quaternion.identity, "/sim/forward_cam/image_raw", "forward_camera_optical_frame", 70f);
         }
 
         static void Mesh(GameObject parent, string name, PrimitiveType type, Vector3 pos, Quaternion rot, Vector3 scale)
@@ -175,7 +253,7 @@ namespace DroneSim.Editor
             go.transform.localScale = scale;
         }
 
-        static Rotor AddRotor(GameObject parent, string name, int channel, Vector3 pos, Vector3 axis, int spin)
+        static Rotor AddRotor(GameObject parent, string name, int channel, Vector3 pos, Vector3 axis, int spin, float diameter = PropDiameter)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent.transform, false);
@@ -185,7 +263,7 @@ namespace DroneSim.Editor
             disc.name = "Disc";
             Object.DestroyImmediate(disc.GetComponent<Collider>());
             disc.transform.SetParent(go.transform, false);
-            disc.transform.localScale = new Vector3(PropDiameter, 0.005f, PropDiameter);
+            disc.transform.localScale = new Vector3(diameter, 0.005f, diameter);
             var r = go.AddComponent<Rotor>();
             r.channel = channel;
             r.spinDirection = spin;
