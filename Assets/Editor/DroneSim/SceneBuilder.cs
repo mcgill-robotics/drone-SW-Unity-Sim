@@ -14,6 +14,8 @@ namespace DroneSim.Editor
     public static class SceneBuilder
     {
         const string ScenePath = "Assets/_Project/Scenes/Flight.unity";
+        /// <summary>Lift and pusher props are 16 inch.</summary>
+        const float PropDiameter = 16f * 0.0254f;
 
         [MenuItem("Drone Sim/Build Flight Scene")]
         public static void Build()
@@ -169,7 +171,7 @@ namespace DroneSim.Editor
             disc.name = "Disc";
             Object.DestroyImmediate(disc.GetComponent<Collider>());
             disc.transform.SetParent(go.transform, false);
-            disc.transform.localScale = new Vector3(0.25f, 0.005f, 0.25f);
+            disc.transform.localScale = new Vector3(PropDiameter, 0.005f, PropDiameter);
             var r = go.AddComponent<Rotor>();
             r.channel = channel;
             r.spinDirection = spin;
