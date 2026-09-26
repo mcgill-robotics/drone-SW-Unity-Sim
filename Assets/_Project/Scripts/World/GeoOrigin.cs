@@ -13,14 +13,12 @@ namespace DroneSim
         private static GeoOrigin _instance;
         public static GeoOrigin Instance { get => _instance != null ? _instance : _instance = FindAnyObjectByType<GeoOrigin>(); private set => _instance = value; }
 
+        // Defaults are PX4 SITL's stock home, so a plain PX4 launch lands where PX4's docs expect.
         [Header("Origin (WGS84)")]
-        public double latitude = 36.2130;
-        public double longitude = -96.0090;
+        public double latitude = 47.397742;
+        public double longitude = 8.545594;
         [Tooltip("Altitude of Unity y=0 above mean sea level (m)")]
-        public double altitude = 210.0;
-
-        [Header("Magnetic field at origin (NED, gauss)")]
-        public Vector3 magneticFieldNED = new Vector3(0.21f, -0.007f, 0.45f);
+        public double altitude = 488.0;
 
         private const double EarthRadius = 6378137.0;
         private double cosLat;
@@ -36,8 +34,8 @@ namespace DroneSim
 
         /// <summary>
         /// With Unity as the simulator, PX4's home comes from the GPS we send, so PX4_HOME_LAT/LON/ALT
-        /// on the PX4 side do nothing. Read the same variables here so drone-2027's instructions
-        /// (e.g. PX4_HOME_LAT=45.5048 for check_lap) still move the world.
+        /// on the PX4 side do nothing. Read the same variables here so the usual way of moving home
+        /// still works.
         /// </summary>
         public void ApplyEnvironmentOverrides()
         {
@@ -73,7 +71,12 @@ namespace DroneSim
             return transform.position + new Vector3(east, up, north);
         }
 
-        /// <summary>Magnetic field as a Unity world vector.</summary>
-        public Vector3 MagneticFieldUnity => new Vector3(magneticFieldNED.y, -magneticFieldNED.z, magneticFieldNED.x);
+        /// <summary>Earth's field at the origin (NED, gauss), from the table PX4 checks its compass against.</summary>
+        public Vector3 MagneticFieldNed => WorldMagneticModel.FieldNed(latitude, longitude);
+
+        /// <summary>Earth's field at the origin as a Unity world vector (east, up, north), gauss.</summary>
+        public Vector3 MagneticFieldUnity => NedToUnity(MagneticFieldNed);
+
+        public static Vector3 NedToUnity(Vector3 ned) => new Vector3(ned.y, -ned.z, ned.x);
     }
 }

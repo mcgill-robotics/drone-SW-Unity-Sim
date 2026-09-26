@@ -83,9 +83,9 @@ namespace DroneSim
             if (imu == null && rb != null) imu = rb.GetComponentInChildren<ImuModel>();
             if (actuators == null && rb != null) actuators = rb.GetComponentInChildren<VehicleActuators>();
             if (wing == null && rb != null) wing = rb.GetComponentInChildren<Wing>();
-            if (rb == null || imu == null || actuators == null)
+            if (rb == null || imu == null || actuators == null || GeoOrigin.Instance == null)
             {
-                Debug.LogError("[PX4] Bridge needs a vehicle rigidbody with ImuModel and VehicleActuators");
+                Debug.LogError("[PX4] Bridge needs a GeoOrigin and a vehicle rigidbody with ImuModel and VehicleActuators");
                 enabled = false;
                 return;
             }
@@ -217,7 +217,7 @@ namespace DroneSim
             Vector3 accFrd = BodyToFrd(imu.Acceleration);
             Vector3 gyroFrd = RateToFrd(imu.AngularRate);
 
-            Vector3 magWorld = GeoOrigin.Instance != null ? GeoOrigin.Instance.MagneticFieldUnity : new Vector3(0, -0.4f, 0.2f);
+            Vector3 magWorld = GeoOrigin.Instance.MagneticFieldUnity;
             Vector3 magFrd = BodyToFrd(Quaternion.Inverse(imu.Orientation) * magWorld)
                 + Stochastic.GenerateWhiteNoiseVector(magNoiseGauss);
 

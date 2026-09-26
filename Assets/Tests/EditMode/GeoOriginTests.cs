@@ -63,11 +63,21 @@ namespace DroneSim.Tests
         }
 
         [Test]
-        public void MagneticField_NedToUnity()
+        public void NedToUnity_IsEastUpNorth()
         {
-            geo.magneticFieldNED = new Vector3(0.2f, 0.01f, 0.45f);
-            // Unity (east, up, north) = (NED y, -NED z, NED x)
-            Assert.AreEqual(new Vector3(0.01f, -0.45f, 0.2f), geo.MagneticFieldUnity);
+            Assert.AreEqual(new Vector3(0.01f, -0.45f, 0.2f), GeoOrigin.NedToUnity(new Vector3(0.2f, 0.01f, 0.45f)));
+        }
+
+        [Test]
+        public void MagneticField_FollowsTheOrigin()
+        {
+            // Montreal: west declination, steep inclination. Values from PX4's own table.
+            geo.latitude = 45.5048;
+            geo.longitude = -73.5772;
+            Vector3 ned = geo.MagneticFieldNed;
+            Assert.Less(ned.y, 0f, "east component should be negative for west declination");
+            Assert.Greater(ned.z, 0f, "field points down in the northern hemisphere");
+            Assert.AreEqual(WorldMagneticModel.StrengthGauss(45.5048, -73.5772), ned.magnitude, 1e-4f);
         }
     }
 }
