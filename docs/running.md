@@ -31,7 +31,10 @@ In the editor: Window > General > Test Runner > EditMode.
 
 PX4 connects to Unity as a TCP client on port 4560 and runs in lockstep with it.
 
+Use the same PX4 release as the flight controller and drone-2027's `px4_msgs` (v1.17.0):
+
 ```bash
+git clone --recursive -b v1.17.0 https://github.com/PX4/PX4-Autopilot.git
 cd PX4-Autopilot
 make px4_sitl                     # build only, launches nothing
 PX4_SIM_MODEL=gazebo-classic_standard_vtol ./build/px4_sitl_default/bin/px4
@@ -60,11 +63,14 @@ bridge stops waiting until the next controls arrive, and a dropped connection re
 
 ## 3. ROS 2
 
-The PX4 side of ROS 2:
+The PX4 side of ROS 2. Use Micro-XRCE-DDS-Agent v2.4.2; v3.x doesn't work with PX4's client.
 
 ```bash
 MicroXRCEAgent udp4 -p 8888
 ```
+
+drone-2027's flight checks start the agent themselves with `--sitl`, so skip this when
+running those.
 
 The Unity side of ROS 2 (cameras, IMU, ground truth, /clock):
 
@@ -74,6 +80,26 @@ ros2 run ros_tcp_endpoint default_server_endpoint --ros-args -p ROS_IP:=0.0.0.0
 
 Unity connects to the endpoint at 127.0.0.1:10000. Change the address on the `ROSConnection`
 component under `Managers` if the endpoint runs elsewhere, for example in Docker.
+
+## Running drone-2027's flight checks against Unity
+
+drone-2027 (`feat/uxrce-dds-port`) talks to PX4 over uXRCE-DDS and doesn't care which
+simulator is under PX4. Its `docs/sitl.md` says `make px4_sitl gz_x500`; with Unity, run the
+PX4 commands above instead, then its checks unchanged:
+
+```bash
+ros2 run drone check_link --sitl
+ros2 run drone check_telemetry --sitl --duration 10
+ros2 run drone check_hover --sitl --api
+```
+
+- The checks fly in multicopter mode only. They never command a transition, so a quadplane
+  runs them as a quad.
+- `check_goto_gps` and `check_gps_movement` take coordinates near Zurich in their examples,
+  and `check_lap` uses Montreal. Move Unity's origin to match (`PX4_HOME_LAT` etc. above) or
+  pass coordinates near the Unity origin, or the vehicle will try to fly across an ocean.
+- On a Mac, run PX4 SITL and Unity natively and the ROS 2 side in drone-2027's
+  `docker/Dockerfile`, with UDP 8888 published.
 
 ## Keys
 
