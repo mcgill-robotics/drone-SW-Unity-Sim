@@ -89,9 +89,15 @@ namespace DroneSim
                 return;
             }
 
-            running = true;
             listener = new TcpListener(IPAddress.Any, port);
-            listener.Start();
+            try { listener.Start(); }
+            catch (SocketException e)
+            {
+                Debug.LogError($"[PX4] Can't listen on TCP {port} ({e.SocketErrorCode}). Is another Unity instance or simulator running?");
+                enabled = false;
+                return;
+            }
+            running = true;
             acceptThread = new Thread(AcceptLoop) { IsBackground = true, Name = "px4-accept" };
             acceptThread.Start();
             Debug.Log($"[PX4] Waiting for PX4 SITL on TCP {port}");
