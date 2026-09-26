@@ -48,6 +48,12 @@ namespace Bridge
         public float baroNoiseHpa = 0.02f;
         public float temperatureC = 25f;
 
+        // PX4's sensor validator marks a sensor stale when it reports the exact same value too many
+        // times in a row, so every channel needs some noise or a parked vehicle loses its compass.
+        [Header("Mag and airspeed noise")]
+        public float magNoiseGauss = 0.001f;
+        public float diffPressureNoiseHpa = 0.003f;
+
         public bool Connected => client != null;
         public bool ReceivedControls { get; private set; }
         public ulong LastControlsTimeUs { get; private set; }
@@ -213,12 +219,13 @@ namespace Bridge
             Vector3 gyroFrd = RateToFrd(imu.AngularRate);
 
             Vector3 magWorld = GeoOrigin.Instance != null ? GeoOrigin.Instance.MagneticFieldUnity : new Vector3(0, -0.4f, 0.2f);
-            Vector3 magFrd = BodyToFrd(Quaternion.Inverse(imu.Orientation) * magWorld);
+            Vector3 magFrd = BodyToFrd(Quaternion.Inverse(imu.Orientation) * magWorld)
+                + Stochastic.GenerateWhiteNoiseVector(magNoiseGauss);
 
             GeoOrigin.Instance.ToGeodetic(rb.position, out _, out _, out double altMsl);
             float absP = PressureAtAltitude((float)altMsl) + Stochastic.GenerateGaussian() * baroNoiseHpa;
             float tas = wing != null ? wing.Airspeed : rb.linearVelocity.magnitude;
-            float diffP = 0.5f * 1.225f * tas * tas / 100f;
+            float diffP = 0.5f * 1.225f * tas * tas / 100f + Stochastic.GenerateGaussian() * diffPressureNoiseHpa;
 
             Send(Msg.HilSensor, Msg.HilSensorCrc,
                 Msg.HilSensor_(timeUs, accFrd, gyroFrd, magFrd, absP, diffP, (float)altMsl, temperatureC, 0x1FFF, 0));
