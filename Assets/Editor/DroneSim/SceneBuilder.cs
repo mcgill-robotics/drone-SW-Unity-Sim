@@ -28,6 +28,12 @@ namespace DroneSim.Editor
         /// the motors and battery are picked; replace with bench-test numbers.
         /// </summary>
         const float LiftRotorMaxThrust = 32f;
+        /// <summary>
+        /// Pusher thrust, about 0.47 of weight: PX4's forward transition must reach the blend
+        /// airspeed (VT_ARSP_BLEND, 8 m/s) within VT_F_TR_OL_TM (6 s) at VT_F_TRANS_THR (75%)
+        /// throttle, or it quad-chutes. 15 N failed that. A guess until the motor is picked.
+        /// </summary>
+        const float PusherMaxThrust = 30f;
         /// <summary>Reaction torque per newton of thrust, the ratio PX4's Gazebo models use.</summary>
         const float RotorMomentRatio = 0.016f;
 
@@ -166,8 +172,8 @@ namespace DroneSim.Editor
                 r.maxTorque = LiftRotorMaxThrust * RotorMomentRatio;
             }
             var pusher = AddRotor(root, "Pusher", StandardVtolChannels.Pusher, new Vector3(0f, 0f, -0.62f), Vector3.forward, +1);
-            pusher.maxThrust = 15f;
-            pusher.maxTorque = 0.05f;
+            pusher.maxThrust = PusherMaxThrust;
+            pusher.maxTorque = PusherMaxThrust * RotorMomentRatio;
 
             // Each aileron carries half the roll authority, as PX4's CA_SV_CS0/1_TRQ_R = -0.5/+0.5.
             AddSurface(root, "AileronLeft", StandardVtolChannels.AileronLeft, ControlSurface.Axis.Roll, 0.015f, invert: true);
