@@ -20,6 +20,8 @@ public class Rotor : MonoBehaviour, IActuator
     [Tooltip("Spin-up time constant (s)")] public float timeConstant = 0.05f;
     [Tooltip("Runtime multiplier used by domain randomization")] public float efficiency = 1f;
 
+    /// <summary>Throttle PX4 is asking for, before the spin-up lag.</summary>
+    public float Commanded => commanded;
     public float Throttle { get; private set; }
     public float Thrust { get; private set; }
 

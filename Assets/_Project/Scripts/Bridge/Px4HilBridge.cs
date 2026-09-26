@@ -241,14 +241,14 @@ namespace Bridge
         private void SendState()
         {
             GeoOrigin.Instance.ToGeodetic(rb.position, out double lat, out double lon, out double alt);
-            Quaternion q = rb.rotation;
+            Vector4 q = ToNedFrd(rb.rotation);
             Vector3 w = RateToFrd(rb.transform.InverseTransformDirection(rb.angularVelocity));
             Vector3 v = rb.linearVelocity;
             Vector3 accFrd = BodyToFrd(imu.Acceleration) / 9.80665f * 1000f;
             float tas = wing != null ? wing.Airspeed : v.magnitude;
 
             Send(Msg.HilStateQuaternion, Msg.HilStateQuaternionCrc, Msg.HilStateQuaternion_(timeUs,
-                q.w, -q.z, -q.x, q.y, w.x, w.y, w.z,
+                q.w, q.x, q.y, q.z, w.x, w.y, w.z,
                 (int)(lat * 1e7), (int)(lon * 1e7), (int)(alt * 1000),
                 (short)(v.z * 100f), (short)(v.x * 100f), (short)(-v.y * 100f),
                 (ushort)(tas * 100f), (ushort)(tas * 100f),
@@ -267,6 +267,12 @@ namespace Bridge
         public static Vector3 BodyToFrd(Vector3 v) => new Vector3(v.z, v.x, -v.y);
         /// <summary>Angular rate is a pseudovector: axis swap then handedness flip.</summary>
         public static Vector3 RateToFrd(Vector3 w) => new Vector3(-w.z, -w.x, w.y);
+
+        /// <summary>
+        /// Unity attitude (body to world) as a NED-to-FRD quaternion, packed (x, y, z, w) with w
+        /// the scalar. Axis swap plus handedness flip on the vector part, as for RateToFrd.
+        /// </summary>
+        public static Vector4 ToNedFrd(Quaternion q) => new Vector4(-q.z, -q.x, q.y, q.w);
 
         public static float PressureAtAltitude(float hMeters)
             => 1013.25f * Mathf.Pow(1f - 2.25577e-5f * hMeters, 5.25588f);

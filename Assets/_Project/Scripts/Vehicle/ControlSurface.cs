@@ -20,6 +20,8 @@ public class ControlSurface : MonoBehaviour, IActuator
     public float momentCoefficient = 0.02f;
     [Tooltip("Servo time constant (s)")] public float timeConstant = 0.05f;
 
+    /// <summary>Deflection PX4 is asking for, after invert, before the servo lag.</summary>
+    public float Commanded => commanded;
     public float Deflection { get; private set; }
 
     private Rigidbody rb;
