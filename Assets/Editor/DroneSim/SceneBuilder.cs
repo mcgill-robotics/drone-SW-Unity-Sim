@@ -16,6 +16,15 @@ namespace DroneSim.Editor
         const string ScenePath = "Assets/_Project/Scenes/Flight.unity";
         /// <summary>Lift and pusher props are 16 inch.</summary>
         const float PropDiameter = 16f * 0.0254f;
+        /// <summary>Expected takeoff weight is 6 to 7 kg.</summary>
+        const float QuadplaneMass = 6.5f;
+        /// <summary>
+        /// Per lift rotor, for a hover thrust-to-weight of about 2. A guess for 16 inch props until
+        /// the motors and battery are picked; replace with bench-test numbers.
+        /// </summary>
+        const float LiftRotorMaxThrust = 32f;
+        /// <summary>Reaction torque per newton of thrust, the ratio PX4's Gazebo models use.</summary>
+        const float RotorMomentRatio = 0.016f;
 
         [MenuItem("Drone Sim/Build Flight Scene")]
         public static void Build()
@@ -96,12 +105,12 @@ namespace DroneSim.Editor
         {
             var root = new GameObject("Vehicle");
             var rb = root.AddComponent<Rigidbody>();
-            rb.mass = 6f;
+            rb.mass = QuadplaneMass;
             rb.linearDamping = 0f;
             rb.angularDamping = 0.05f;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
-            rb.inertiaTensor = new Vector3(0.6f, 0.9f, 0.4f);
+            rb.inertiaTensor = new Vector3(0.6f, 0.9f, 0.4f) * (QuadplaneMass / 6f); // placeholder scaled from 6 kg
             rb.inertiaTensorRotation = Quaternion.identity;
 
             var col = root.AddComponent<BoxCollider>();
@@ -125,6 +134,11 @@ namespace DroneSim.Editor
             AddRotor(root, "RotorRL", StandardVtolChannels.RotorRearLeft, new Vector3(-0.5f, 0.03f, -0.4f), Vector3.up, +1);
             AddRotor(root, "RotorFL", StandardVtolChannels.RotorFrontLeft, new Vector3(-0.5f, 0.03f, 0.4f), Vector3.up, -1);
             AddRotor(root, "RotorRR", StandardVtolChannels.RotorRearRight, new Vector3(0.5f, 0.03f, -0.4f), Vector3.up, -1);
+            foreach (var r in root.GetComponentsInChildren<Rotor>())
+            {
+                r.maxThrust = LiftRotorMaxThrust;
+                r.maxTorque = LiftRotorMaxThrust * RotorMomentRatio;
+            }
             var pusher = AddRotor(root, "Pusher", StandardVtolChannels.Pusher, new Vector3(0f, 0f, -0.62f), Vector3.forward, +1);
             pusher.maxThrust = 15f;
             pusher.maxTorque = 0.05f;
