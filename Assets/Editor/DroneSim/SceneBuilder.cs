@@ -117,6 +117,7 @@ namespace DroneSim.Editor
             Mesh(root, "BoomR", PrimitiveType.Cube, new Vector3(0.5f, 0, 0), Quaternion.identity, new Vector3(0.03f, 0.03f, 0.9f));
 
             // Lift rotors, PX4 quad-x order: 0 front-right, 1 rear-left, 2 front-left, 3 rear-right.
+            // Spin +1 = CCW from above, matching the sign of PX4's CA_ROTORn_KM for that rotor.
             AddRotor(root, "RotorFR", 0, new Vector3(0.5f, 0.03f, 0.4f), Vector3.up, +1);
             AddRotor(root, "RotorRL", 1, new Vector3(-0.5f, 0.03f, -0.4f), Vector3.up, +1);
             AddRotor(root, "RotorFL", 2, new Vector3(-0.5f, 0.03f, 0.4f), Vector3.up, -1);

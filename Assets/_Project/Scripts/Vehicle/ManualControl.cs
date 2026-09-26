@@ -89,9 +89,9 @@ public class ManualControl : MonoBehaviour
         for (int i = 0; i < liftRotors.Length; i++)
         {
             float t = collective + rollMix[i] * rollOut + pitchMix[i] * pitchOut + yawMix[i] * yawOut;
-            controls[liftRotors[i]] = Mathf.Clamp01(t) * 2f - 1f;    // rotor throttle -> PX4 -1..1
+            controls[liftRotors[i]] = Mathf.Clamp01(t);              // motors are 0..1, as PX4 sends them
         }
-        controls[pusherChannel] = pusher * 2f - 1f;
+        controls[pusherChannel] = pusher;
         controls[aileronChannel] = Mathf.Clamp(rollCmd + rollOut, -1f, 1f);
         controls[elevatorChannel] = Mathf.Clamp(pitchCmd + pitchOut, -1f, 1f);
         controls[rudderChannel] = Mathf.Clamp(yawCmd, -1f, 1f);
