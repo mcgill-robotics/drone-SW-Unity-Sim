@@ -86,8 +86,9 @@ namespace DroneSim.Editor
 
         /// <summary>
         /// A placeholder standard VTOL: 2 m span wing, four lift rotors on booms, a rear pusher,
-        /// and three control surfaces. Channels follow PX4's standard_vtol SITL mapping:
-        /// 0-3 lift rotors, 4 pusher, 5 aileron, 6 elevator, 7 rudder.
+        /// two ailerons and an elevator. Channels follow PX4's standard_vtol airframe, see
+        /// StandardVtolChannels. That airframe has no rudder; the wing's cnBeta gives weathercock
+        /// stability instead.
         /// </summary>
         static GameObject BuildVehicle()
         {
@@ -118,17 +119,18 @@ namespace DroneSim.Editor
 
             // Lift rotors, PX4 quad-x order: 0 front-right, 1 rear-left, 2 front-left, 3 rear-right.
             // Spin +1 = CCW from above, matching the sign of PX4's CA_ROTORn_KM for that rotor.
-            AddRotor(root, "RotorFR", 0, new Vector3(0.5f, 0.03f, 0.4f), Vector3.up, +1);
-            AddRotor(root, "RotorRL", 1, new Vector3(-0.5f, 0.03f, -0.4f), Vector3.up, +1);
-            AddRotor(root, "RotorFL", 2, new Vector3(-0.5f, 0.03f, 0.4f), Vector3.up, -1);
-            AddRotor(root, "RotorRR", 3, new Vector3(0.5f, 0.03f, -0.4f), Vector3.up, -1);
-            var pusher = AddRotor(root, "Pusher", 4, new Vector3(0f, 0f, -0.62f), Vector3.forward, +1);
+            AddRotor(root, "RotorFR", StandardVtolChannels.RotorFrontRight, new Vector3(0.5f, 0.03f, 0.4f), Vector3.up, +1);
+            AddRotor(root, "RotorRL", StandardVtolChannels.RotorRearLeft, new Vector3(-0.5f, 0.03f, -0.4f), Vector3.up, +1);
+            AddRotor(root, "RotorFL", StandardVtolChannels.RotorFrontLeft, new Vector3(-0.5f, 0.03f, 0.4f), Vector3.up, -1);
+            AddRotor(root, "RotorRR", StandardVtolChannels.RotorRearRight, new Vector3(0.5f, 0.03f, -0.4f), Vector3.up, -1);
+            var pusher = AddRotor(root, "Pusher", StandardVtolChannels.Pusher, new Vector3(0f, 0f, -0.62f), Vector3.forward, +1);
             pusher.maxThrust = 15f;
             pusher.maxTorque = 0.05f;
 
-            AddSurface(root, "Aileron", 5, ControlSurface.Axis.Roll, 0.03f);
-            AddSurface(root, "Elevator", 6, ControlSurface.Axis.Pitch, 0.02f);
-            AddSurface(root, "Rudder", 7, ControlSurface.Axis.Yaw, 0.01f);
+            // Each aileron carries half the roll authority, as PX4's CA_SV_CS0/1_TRQ_R = -0.5/+0.5.
+            AddSurface(root, "AileronLeft", StandardVtolChannels.AileronLeft, ControlSurface.Axis.Roll, 0.015f, invert: true);
+            AddSurface(root, "AileronRight", StandardVtolChannels.AileronRight, ControlSurface.Axis.Roll, 0.015f);
+            AddSurface(root, "Elevator", StandardVtolChannels.Elevator, ControlSurface.Axis.Pitch, 0.02f);
 
             // Sensors.
             var imuGo = new GameObject("IMU");
@@ -174,7 +176,7 @@ namespace DroneSim.Editor
             return r;
         }
 
-        static void AddSurface(GameObject parent, string name, int channel, ControlSurface.Axis axis, float coeff)
+        static void AddSurface(GameObject parent, string name, int channel, ControlSurface.Axis axis, float coeff, bool invert = false)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent.transform, false);
@@ -182,6 +184,7 @@ namespace DroneSim.Editor
             s.channel = channel;
             s.axis = axis;
             s.momentCoefficient = coeff;
+            s.invert = invert;
         }
 
         static void AddCamera(GameObject parent, string name, Vector3 pos, Quaternion rot, string topic, string frame, float fov)

@@ -2,14 +2,16 @@ using UnityEngine;
 
 /// <summary>
 /// A control surface modelled as a moment about a body axis, scaled by dynamic pressure.
-/// Deflection comes straight from a PX4 channel (-1..1).
+/// Deflection comes straight from a PX4 channel (-1..1). A positive deflection produces a
+/// positive aero moment (roll right, pitch up, yaw right); set invert for surfaces whose PX4
+/// torque sign is negative, like standard_vtol's left aileron.
 /// </summary>
 public class ControlSurface : MonoBehaviour, IActuator
 {
     public enum Axis { Roll, Pitch, Yaw }
 
     [Header("PX4 channel")]
-    public int channel = 5;
+    public int channel = StandardVtolChannels.Elevator;
     public bool invert = false;
 
     [Header("Aero")]

@@ -17,13 +17,20 @@ public class ManualControl : MonoBehaviour
     public static ManualControl Instance { get => _instance != null ? _instance : _instance = FindAnyObjectByType<ManualControl>(); private set => _instance = value; }
     public bool Active => active;
 
-    [Header("Channels (match VehicleActuators layout)")]
-    public int[] liftRotors = { 0, 1, 2, 3 };
+    [Header("Channels (see StandardVtolChannels)")]
+    public int[] liftRotors =
+    {
+        StandardVtolChannels.RotorFrontRight, StandardVtolChannels.RotorRearLeft,
+        StandardVtolChannels.RotorFrontLeft, StandardVtolChannels.RotorRearRight
+    };
     [Tooltip("Sign of each lift rotor's contribution to roll (positive = right wing down) and pitch (positive = nose up)")]
     public float[] rollMix = { -1f, +1f, +1f, -1f };   // FR, RL, FL, RR
     public float[] pitchMix = { +1f, -1f, +1f, -1f };
     public float[] yawMix = { +1f, +1f, -1f, -1f };
-    public int pusherChannel = 4, aileronChannel = 5, elevatorChannel = 6, rudderChannel = 7;
+    public int pusherChannel = StandardVtolChannels.Pusher;
+    public int leftAileronChannel = StandardVtolChannels.AileronLeft;
+    public int rightAileronChannel = StandardVtolChannels.AileronRight;
+    public int elevatorChannel = StandardVtolChannels.Elevator;
 
     [Header("Feel")]
     public float collectiveRate = 0.6f;     // per second
@@ -92,9 +99,10 @@ public class ManualControl : MonoBehaviour
             controls[liftRotors[i]] = Mathf.Clamp01(t);              // motors are 0..1, as PX4 sends them
         }
         controls[pusherChannel] = pusher;
-        controls[aileronChannel] = Mathf.Clamp(rollCmd + rollOut, -1f, 1f);
+        float aileron = Mathf.Clamp(rollCmd + rollOut, -1f, 1f);
+        controls[leftAileronChannel] = -aileron;                      // PX4 left aileron rolls left when positive
+        controls[rightAileronChannel] = aileron;
         controls[elevatorChannel] = Mathf.Clamp(pitchCmd + pitchOut, -1f, 1f);
-        controls[rudderChannel] = Mathf.Clamp(yawCmd, -1f, 1f);
 
         actuators.SetControls(controls, true);
     }
