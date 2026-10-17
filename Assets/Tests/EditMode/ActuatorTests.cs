@@ -56,13 +56,24 @@ namespace DroneSim.Tests
         }
 
         [Test]
-        public void ControlSurface_InvertFlipsSign_AndServosPassWhileDisarmed()
+        public void ControlSurface_PassesServoValueWhileDisarmed()
         {
             var left = go.AddComponent<ControlSurface>();
             left.channel = StandardVtolChannels.AileronLeft;
-            left.invert = true;
+            left.torque = new Vector3(-0.5f, 0f, 0f);
             left.Apply(Controls(left.channel, 0.4f), armed: false);
-            Assert.AreEqual(-0.4f, left.Commanded, 1e-6f);
+            Assert.AreEqual(0.4f, left.Commanded, 1e-6f);
+        }
+
+        [TestCase(-1f, 0f)]
+        [TestCase(0f, 0f)]
+        [TestCase(0.25f, 1.5f)]
+        [TestCase(0.5f, 3f)]
+        [TestCase(0.75f, 5f)]
+        [TestCase(1.2f, 7f)]
+        public void Rotor_Interpolate_IsPiecewiseLinearAndClamped(float x, float y)
+        {
+            Assert.AreEqual(y, Rotor.Interpolate(new[] { 0f, 0.5f, 1f }, new[] { 0f, 3f, 7f }, x), 1e-5f);
         }
 
         [Test]

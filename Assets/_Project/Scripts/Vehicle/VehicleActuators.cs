@@ -44,8 +44,8 @@ namespace DroneSim
 
     /// <summary>
     /// Output channels of PX4's standard_vtol airframe (1040_gazebo-classic_standard_vtol,
-    /// PWM_MAIN_FUNC1..8). Motors arrive 0..1, servos -1..1. The scene builder and manual control
-    /// both read from here so there is one place to change when the real airframe differs.
+    /// PWM_MAIN_FUNC1..8). Motors arrive 0..1, servos -1..1. Vehicle specs set their own channels;
+    /// keyboard flying (ManualControl) uses these defaults.
     /// </summary>
     public static class StandardVtolChannels
     {
