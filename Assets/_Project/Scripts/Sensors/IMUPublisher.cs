@@ -7,7 +7,8 @@ using Unity.Robotics.ROSTCPConnector.ROSGeometry;
 namespace DroneSim
 {
     /// <summary>
-    /// Publishes sensor_msgs/Imu in FLU from an ImuModel on the same GameObject.
+    /// Publishes sensor_msgs/Imu from an ImuModel on the same GameObject: rates and acceleration
+    /// in body FLU, orientation relative to ENU.
     /// </summary>
     [RequireComponent(typeof(ImuModel))]
     public class IMUPublisher : ROSPublisher
@@ -45,7 +46,8 @@ namespace DroneSim
             Vector3 w = imu.AngularRate;
             // Angular rate is a pseudovector: handedness flip negates it after the axis swap.
             msg.angular_velocity = new Vector3Msg { x = -w.z, y = w.x, z = -w.y };
-            msg.orientation = publishOrientation ? imu.Orientation.To<FLU>() : new QuaternionMsg();
+            Quaternion q = publishOrientation ? GeoOrigin.ToEnuFlu(imu.Orientation) : Quaternion.identity;
+            msg.orientation = new QuaternionMsg(q.x, q.y, q.z, q.w);
             ros.Publish(Topic, msg);
         }
     }

@@ -5,8 +5,8 @@ using UnityEngine;
 namespace DroneSim.Tests
 {
     /// <summary>
-    /// Unity is left-handed x right, y up, z forward (north). PX4 wants FRD body and NED world.
-    /// Each case is a motion whose aero sign is unambiguous.
+    /// Unity is left-handed x right, y up, z forward (north). PX4 wants FRD body and NED world;
+    /// ROS wants FLU body and ENU world. Each case is a motion whose aero sign is unambiguous.
     /// </summary>
     public class FrameConversionTests
     {
@@ -87,6 +87,39 @@ namespace DroneSim.Tests
             Assert.AreEqual(0f, q.x, Eps);
             Assert.AreEqual(0f, q.y, Eps);
             Assert.AreEqual(s, q.z, Eps);
+        }
+
+        /// <summary>Unity body to FLU, the same mapping as the ROS connector's To&lt;FLU&gt;().</summary>
+        static Vector3 Flu(Vector3 body) => new Vector3(body.z, -body.x, body.y);
+
+        [Test]
+        public void ToEnu_MapsAxes()
+        {
+            AssertVec(new Vector3(1, 0, 0), GeoOrigin.ToEnu(Vector3.right));
+            AssertVec(new Vector3(0, 1, 0), GeoOrigin.ToEnu(Vector3.forward));
+            AssertVec(new Vector3(0, 0, 1), GeoOrigin.ToEnu(Vector3.up));
+        }
+
+        [TestCase(0f, 0f, 0f)]
+        [TestCase(0f, 90f, 0f)]
+        [TestCase(-30f, 0f, 0f)]
+        [TestCase(0f, 0f, -20f)]
+        [TestCase(-10f, 135f, 25f)]
+        public void ToEnuFlu_RotatesFluVectorsLikeUnityRotatesBodyVectors(float x, float y, float z)
+        {
+            Quaternion unity = Quaternion.Euler(x, y, z);
+            Quaternion enu = GeoOrigin.ToEnuFlu(unity);
+            Assert.AreEqual(1f, new Vector4(enu.x, enu.y, enu.z, enu.w).magnitude, Eps);
+
+            foreach (var body in new[] { Vector3.forward, Vector3.right, Vector3.up })
+                AssertVec(GeoOrigin.ToEnu(unity * body), enu * Flu(body));
+        }
+
+        [Test]
+        public void ToEnuFlu_FacingEast_IsIdentity()
+        {
+            Quaternion q = GeoOrigin.ToEnuFlu(Quaternion.Euler(0, 90, 0));
+            Assert.AreEqual(1f, Mathf.Abs(q.w), Eps);
         }
 
         [Test]

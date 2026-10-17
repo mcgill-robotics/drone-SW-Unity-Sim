@@ -78,5 +78,19 @@ namespace DroneSim
         public Vector3 MagneticFieldUnity => NedToUnity(MagneticFieldNed);
 
         public static Vector3 NedToUnity(Vector3 ned) => new Vector3(ned.y, -ned.z, ned.x);
+
+        /// <summary>Unity world vector (east, up, north) as ROS ENU.</summary>
+        public static Vector3 ToEnu(Vector3 unity) => new Vector3(unity.x, unity.z, unity.y);
+
+        /// <summary>
+        /// Unity attitude (body to world) as FLU body to ENU world, per REP 103: the FLU conversion
+        /// followed by a 90 degree yaw, so a vehicle facing east is the identity. Done here instead
+        /// of with the ROS connector's To&lt;ENU&gt;(), which depends on a global compass setting.
+        /// </summary>
+        public static Quaternion ToEnuFlu(Quaternion q)
+        {
+            const float s = 0.70710678f;
+            return new Quaternion(-s * (q.x + q.z), s * (q.x - q.z), s * (q.w - q.y), s * (q.w + q.y));
+        }
     }
 }

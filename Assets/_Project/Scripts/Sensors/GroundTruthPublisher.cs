@@ -49,9 +49,11 @@ namespace DroneSim
             var stamp = ROSClock.GetROSTimestamp();
 
             Vector3 local = GeoOrigin.Instance != null ? GeoOrigin.Instance.ToLocal(rb.position) : rb.position;
+            Vector3 enu = GeoOrigin.ToEnu(local);
+            Quaternion q = GeoOrigin.ToEnuFlu(rb.rotation);
             pose.header.stamp = stamp;
-            pose.pose.position = local.To<FLU>();   // Unity (x,y,z) -> ENU (z, -x, y) via FLU mapping of world axes
-            pose.pose.orientation = rb.rotation.To<FLU>();
+            pose.pose.position = new PointMsg(enu.x, enu.y, enu.z);
+            pose.pose.orientation = new QuaternionMsg(q.x, q.y, q.z, q.w);
             ros.Publish(s.GroundTruthPoseTopic, pose);
 
             Vector3 v = rb.transform.InverseTransformDirection(rb.linearVelocity);

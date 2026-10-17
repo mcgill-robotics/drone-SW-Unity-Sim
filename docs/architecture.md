@@ -42,9 +42,10 @@ Tests check its bytes against frames produced by pymavlink.
 | ROS topics from Unity | World ENU, body FLU, as REP 103 |
 
 Conversions live in one place each: `Px4HilBridge.BodyToFrd`, `RateToFrd` and `ToNedFrd` for
-PX4, and the ROS TCP connector's `To<FLU>()` for ROS. Angular rates are pseudovectors, so going
-between left- and right-handed frames flips their sign after the axis swap. Tests pin each
-conversion.
+PX4, `GeoOrigin.ToEnu` and `ToEnuFlu` for ROS world data (pose, IMU orientation), and the ROS TCP
+connector's `To<FLU>()` for ROS body vectors. Angular rates are pseudovectors, so going between
+left- and right-handed frames flips their sign after the axis swap. Tests pin the PX4 and ENU
+conversions.
 
 `World/GeoOrigin.cs` holds the latitude, longitude and altitude of the Unity origin and converts
 positions to and from geodetic coordinates (flat earth, fine within a few km). The magnetic
