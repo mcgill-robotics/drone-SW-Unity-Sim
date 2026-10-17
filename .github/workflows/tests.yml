@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   editmode:
+    # Runs play mode too. The name stays: it's the required status check in main's ruleset.
     name: Edit-mode tests
     # One Unity job at a time across workflows, so jobs don't compete for the license seat.
     concurrency:
@@ -39,9 +40,10 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
         with:
-          testMode: editmode
+          # Edit mode: unit tests. Play mode: the flight scene with each vehicle, no PX4.
+          testMode: all
           githubToken: ${{ secrets.GITHUB_TOKEN }}
-          checkName: Edit-mode test results
+          checkName: Test results
           # Coverage is on by default (coverageEnabled) and uses the Code Coverage package from the
           # project's Engineering feature set. Only the sim's own assembly is measured, not the
           # tests or packages; dontClear keeps every test run's results for the merged report.

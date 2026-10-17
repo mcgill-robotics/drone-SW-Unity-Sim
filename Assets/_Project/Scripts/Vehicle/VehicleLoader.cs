@@ -5,8 +5,8 @@ namespace DroneSim
 {
     /// <summary>
     /// Builds the vehicle from its spec when the scene starts, before any other component looks
-    /// for it. The spec is --vehicle if given (see CommandLineOptions), else the vehicle field: a
-    /// name in StreamingAssets/vehicles or a path to a .json file.
+    /// for it. The spec is Override if set, else --vehicle if given (see CommandLineOptions), else
+    /// the vehicle field: a name in StreamingAssets/vehicles or a path to a .json file.
     /// </summary>
     [DefaultExecutionOrder(-200)]
     public class VehicleLoader : MonoBehaviour
@@ -14,12 +14,22 @@ namespace DroneSim
         [Tooltip("Spec name in StreamingAssets/vehicles (x500, quadplane) or a path to a .json file")]
         public string vehicle = "x500";
 
+        /// <summary>
+        /// Vehicle for scenes loaded from now on, ahead of --vehicle and the field. For play-mode
+        /// tests, which can't change the command line or reach the field before Awake.
+        /// </summary>
+        public static string Override { get; set; }
+
         public static VehicleSpec Loaded { get; private set; }
+
+        // Domain reload is off in this project, so a leftover override would outlive its test.
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void ClearOverride() => Override = null;
 
         private void Awake()
         {
             Loaded = null;
-            string path = VehicleSpec.Resolve(CommandLineOptions.VehicleName ?? vehicle);
+            string path = VehicleSpec.Resolve(Override ?? CommandLineOptions.VehicleName ?? vehicle);
             VehicleSpec spec;
             try { spec = VehicleSpec.Load(path); }
             catch (Exception e) { Debug.LogError($"[Vehicle] can't read {path}: {e.Message}"); return; }
