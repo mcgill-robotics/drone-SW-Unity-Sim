@@ -11,7 +11,7 @@ namespace DroneSim
     /// Listens on TCP 4560. Each physics step sends HIL_SENSOR (plus HIL_GPS and
     /// HIL_STATE_QUATERNION at lower rates), then in lockstep waits for HIL_ACTUATOR_CONTROLS
     /// before the next step. Frames: PX4 wants body FRD and world NED; Unity is x right, y up,
-    /// z forward with z as north. Conversions are in the helpers at the bottom.
+    /// z forward with z as north. Body conversions are in Frames, the attitude one at the bottom.
     ///
     /// Start PX4 with the airframe that matches the scene (see the Setup page in the wiki): none_iris for the
     /// X500, gazebo-classic_standard_vtol for the quadplane. Both start simulator_mavlink, which
@@ -217,17 +217,18 @@ namespace DroneSim
 
         private void SendSensor()
         {
-            Vector3 accFrd = BodyToFrd(imu.Acceleration);
-            Vector3 gyroFrd = RateToFrd(imu.AngularRate);
+            Vector3 accFrd = Frames.BodyToFrd(imu.Acceleration);
+            Vector3 gyroFrd = Frames.RateToFrd(imu.AngularRate);
 
             Vector3 magWorld = GeoOrigin.Instance.MagneticFieldUnity;
-            Vector3 magFrd = BodyToFrd(Quaternion.Inverse(imu.Orientation) * magWorld)
+            Vector3 magFrd = Frames.BodyToFrd(Quaternion.Inverse(imu.Orientation) * magWorld)
                 + Stochastic.GenerateWhiteNoiseVector(magNoiseGauss);
 
             GeoOrigin.Instance.ToGeodetic(rb.position, out _, out _, out double altMsl);
             float absP = PressureAtAltitude((float)altMsl) + Stochastic.GenerateGaussian() * baroNoiseHpa;
             float tas = wing != null ? wing.Airspeed : rb.linearVelocity.magnitude;
-            float diffP = 0.5f * 1.225f * tas * tas / 100f + Stochastic.GenerateGaussian() * diffPressureNoiseHpa;
+            float rho = wing != null ? wing.airDensity : Wing.SeaLevelDensity;
+            float diffP = 0.5f * rho * tas * tas / 100f + Stochastic.GenerateGaussian() * diffPressureNoiseHpa;
 
             Send(Msg.HilSensor, Msg.HilSensorCrc,
                 Msg.HilSensor_(timeUs, accFrd, gyroFrd, magFrd, absP, diffP, (float)altMsl, temperatureC, 0x1FFF, 0));
@@ -254,9 +255,9 @@ namespace DroneSim
         {
             GeoOrigin.Instance.ToGeodetic(rb.position, out double lat, out double lon, out double alt);
             Vector4 q = ToNedFrd(rb.rotation);
-            Vector3 w = RateToFrd(rb.transform.InverseTransformDirection(rb.angularVelocity));
+            Vector3 w = Frames.RateToFrd(rb.transform.InverseTransformDirection(rb.angularVelocity));
             Vector3 v = rb.linearVelocity;
-            Vector3 accFrd = BodyToFrd(imu.Acceleration) / 9.80665f * 1000f;
+            Vector3 accFrd = Frames.BodyToFrd(imu.Acceleration) / 9.80665f * 1000f;
             float tas = wing != null ? wing.Airspeed : v.magnitude;
 
             Send(Msg.HilStateQuaternion, Msg.HilStateQuaternionCrc, Msg.HilStateQuaternion_(timeUs,
@@ -275,14 +276,9 @@ namespace DroneSim
             catch (Exception) { Drop(client); }
         }
 
-        /// <summary>Unity body (x right, y up, z forward) to FRD (x forward, y right, z down).</summary>
-        public static Vector3 BodyToFrd(Vector3 v) => new Vector3(v.z, v.x, -v.y);
-        /// <summary>Angular rate is a pseudovector: axis swap then handedness flip.</summary>
-        public static Vector3 RateToFrd(Vector3 w) => new Vector3(-w.z, -w.x, w.y);
-
         /// <summary>
         /// Unity attitude (body to world) as a NED-to-FRD quaternion, packed (x, y, z, w) with w
-        /// the scalar. Axis swap plus handedness flip on the vector part, as for RateToFrd.
+        /// the scalar. Axis swap plus handedness flip on the vector part, as for Frames.RateToFrd.
         /// </summary>
         public static Vector4 ToNedFrd(Quaternion q) => new Vector4(-q.z, -q.x, q.y, q.w);
 

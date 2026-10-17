@@ -1,0 +1,53 @@
+{
+  "name": "quadplane",
+  "description": "Placeholder standard VTOL standing in for the team's aircraft: 2 m wing, four 16 inch lift rotors on booms, a rear pusher, two ailerons and an elevator, no rudder. Mass and prop size match the team's targets; everything else is a guess sized to fly under PX4.",
+  "massProperties": {
+    "mass": 6.5,
+    "cg": [0, 0, 0],
+    "inertia": { "ixx": 0.4333333, "iyy": 0.65, "izz": 0.975, "ixy": 0, "ixz": 0, "iyz": 0 },
+    "source": "estimate"
+  },
+  "collider": { "center": [0, 0, 0], "size": [1.2, 2.0, 0.15] },
+  "rotors": [
+    { "name": "RotorFR", "channel": 0, "position": [0.4, 0.5, -0.03], "axis": [0, 0, -1], "direction": "ccw",
+      "propDiameter": 0.4064, "maxThrust": 32, "momentRatio": 0.016, "timeConstant": 0.05, "idle": 0, "source": "estimate" },
+    { "name": "RotorRL", "channel": 1, "position": [-0.4, -0.5, -0.03], "axis": [0, 0, -1], "direction": "ccw",
+      "propDiameter": 0.4064, "maxThrust": 32, "momentRatio": 0.016, "timeConstant": 0.05, "idle": 0, "source": "estimate" },
+    { "name": "RotorFL", "channel": 2, "position": [0.4, -0.5, -0.03], "axis": [0, 0, -1], "direction": "cw",
+      "propDiameter": 0.4064, "maxThrust": 32, "momentRatio": 0.016, "timeConstant": 0.05, "idle": 0, "source": "estimate" },
+    { "name": "RotorRR", "channel": 3, "position": [-0.4, 0.5, -0.03], "axis": [0, 0, -1], "direction": "cw",
+      "propDiameter": 0.4064, "maxThrust": 32, "momentRatio": 0.016, "timeConstant": 0.05, "idle": 0, "source": "estimate" },
+    { "name": "Pusher", "channel": 4, "position": [-0.62, 0, 0], "axis": [1, 0, 0], "direction": "ccw",
+      "propDiameter": 0.4064, "maxThrust": 30, "momentRatio": 0.016, "timeConstant": 0.05, "idle": 0, "source": "estimate" }
+  ],
+  "wings": [
+    {
+      "aeroCenter": [0.02, 0, 0],
+      "area": 0.45, "span": 2.0, "chord": 0.22,
+      "cl0": 0.3, "clAlpha": 5.0, "stallAlphaDeg": 15, "clMaxPostStall": 0.6,
+      "cd0": 0.04, "oswald": 0.8, "cyBeta": -0.3,
+      "cmAlpha": -0.6, "cnBeta": 0.08, "clBeta": -0.05,
+      "clp": -0.5, "cmq": -8, "cnr": -0.1,
+      "source": "estimate"
+    }
+  ],
+  "controlSurfaces": [
+    { "name": "AileronLeft", "channel": 5, "type": "left_aileron", "torque": [-0.5, 0, 0], "momentCoefficient": 0.03, "timeConstant": 0.05, "source": "estimate" },
+    { "name": "AileronRight", "channel": 6, "type": "right_aileron", "torque": [0.5, 0, 0], "momentCoefficient": 0.03, "timeConstant": 0.05, "source": "estimate" },
+    { "name": "Elevator", "channel": 7, "type": "elevator", "torque": [0, 1, 0], "momentCoefficient": 0.02, "timeConstant": 0.05, "source": "estimate" }
+  ],
+  "imu": { "position": [0, 0, 0] },
+  "cameras": [
+    { "name": "DownCamera", "position": [0.1, 0, 0.08], "pitchDownDeg": 90 },
+    { "name": "ForwardCamera", "position": [0.35, 0, -0.05], "pitchDownDeg": 0 }
+  ],
+  "visuals": [
+    { "name": "Fuselage", "shape": "capsule", "position": [0, 0, 0], "axis": "x", "diameter": 0.15, "length": 1.1 },
+    { "name": "Wing", "shape": "box", "position": [0.05, 0, 0], "size": [0.22, 2.0, 0.03] },
+    { "name": "Tail", "shape": "box", "position": [-0.55, 0, -0.02], "size": [0.15, 0.6, 0.02] },
+    { "name": "Fin", "shape": "box", "position": [-0.55, 0, -0.12], "size": [0.15, 0.02, 0.2] },
+    { "name": "BoomL", "shape": "box", "position": [0, -0.5, 0], "size": [0.9, 0.03, 0.03] },
+    { "name": "BoomR", "shape": "box", "position": [0, 0.5, 0], "size": [0.9, 0.03, 0.03] }
+  ],
+  "px4": { "baseAirframe": "1040_gazebo-classic_standard_vtol", "autostartId": 22001 }
+}

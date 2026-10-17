@@ -59,17 +59,21 @@ make px4_sitl
 
 Start Unity first, then PX4. QGroundControl, ROS 2 and scripts can connect at any time.
 
-1. In Unity, open the scene for the vehicle you want and press Play. The overlay in the top left
-   of the Game view reads `PX4 SITL: waiting on TCP 4560`.
+1. In Unity, open `Assets/_Project/Scenes/Flight.unity` and press Play. The vehicle is the
+   `Vehicle` field on the `VehicleLoader` component of `Managers`, `x500` by default. The overlay
+   in the top left of the Game view reads `PX4 SITL: waiting on TCP 4560`.
 
-   | Scene | Vehicle | `PX4_SIM_MODEL` |
-   |---|---|---|
-   | `Assets/_Project/Scenes/FlightX500.unity` | PX4's X500 quadcopter | `none_iris` |
-   | `Assets/_Project/Scenes/Flight.unity` | Quadplane | `gazebo-classic_standard_vtol` |
+   | Vehicle | What | `PX4_SIM_MODEL`, stock airframe | `PX4_SIM_MODEL`, generated airframe |
+   |---|---|---|---|
+   | `x500` | PX4's X500 quadcopter | `none_iris` | `unity_x500` |
+   | `quadplane` | Quadplane standing in for the team's aircraft | `gazebo-classic_standard_vtol` | `unity_quadplane` |
+
+   The stock airframes work as they are. The generated ones match the sim's rotor geometry and
+   have to be installed into the PX4 build first ([PX4 airframe](Vehicles#px4-airframe)).
 
    <!-- todo: image of the waiting overlay -->
 
-2. Start PX4 from the `PX4-Autopilot` directory with the airframe that matches the scene:
+2. Start PX4 from the `PX4-Autopilot` directory with the airframe that matches the vehicle:
 
    ```bash
    PX4_SIM_MODEL=none_iris ./build/px4_sitl_default/bin/px4 -d
@@ -100,7 +104,7 @@ Options go after the executable name:
 
 | Option | Default | Effect |
 |---|---|---|
-| `--scene NAME` | `FlightX500` | Vehicle scene: `FlightX500` or `Flight` (quadplane) |
+| `--vehicle NAME` | `x500` | Vehicle spec: `x500`, `quadplane` or a path to a `.json` file ([Vehicles](Vehicles#selecting-a-vehicle)) |
 | `--px4-port PORT` | 4560 | TCP port PX4 SITL connects to |
 | `--ros-ip IP` | 127.0.0.1 | ROS TCP endpoint address |
 | `--ros-port PORT` | 10000 | ROS TCP endpoint port |
@@ -108,8 +112,8 @@ Options go after the executable name:
 | `--config PATH` | `StreamingAssets/sim_config.json` | Camera config file, see [Camera config](Development#camera-config) |
 
 ```bash
-./drone-sim.x86_64 --scene Flight --ros-ip 192.168.1.20                            # Linux
-drone-sim.app/Contents/MacOS/drone-unity-sim --scene Flight                        # macOS
+./drone-sim.x86_64 --vehicle quadplane --ros-ip 192.168.1.20                       # Linux
+drone-sim.app/Contents/MacOS/drone-unity-sim --vehicle quadplane                   # macOS
 ```
 
 On macOS, clear the quarantine flag on a downloaded build first: `xattr -cr drone-sim.app`.
@@ -124,7 +128,7 @@ Unity's own player options also apply, for example `-screen-fullscreen 0 -screen
 Open QGC. PX4 SITL sends MAVLink to UDP 14550 on localhost, where QGC listens by default. For
 QGC on another machine, set PX4 parameter `MAV_0_BROADCAST` to 1 or add a UDP link in QGC.
 
-`missions/vtol_flyaround.plan` is a demo mission for `Flight.unity` at the default home: VTOL
+`missions/vtol_flyaround.plan` is a demo mission for the quadplane at the default home: VTOL
 takeoff to 50 m, a lap of about 1.2 km in fixed-wing flight, VTOL landing at home. In QGC:
 Plan view, File, Open, then Upload; then Start Mission in the Fly view.
 
@@ -165,9 +169,9 @@ PX4 derives its home from the GPS that Unity sends, so `PX4_HOME_LAT`, `PX4_HOME
   ```
 
 - Or edit the fields on the `GeoOrigin` component of the `Managers` object in the scene. This
-  edit is lost when the scenes are rebuilt (see [Vehicle config](Development#vehicle-config)).
+  edit is lost when the scene is rebuilt (see [Scenes](Architecture#scenes)).
 
-The simulated magnetic field follows the home location automatically. drone-2027's `check_lap`
+The simulated magnetic field follows the home location automatically. drone-SW-26-27's `check_lap`
 uses Montreal waypoints and needs the Montreal home above.
 
 ## ROS 2
@@ -198,8 +202,10 @@ reachable from the host. Every port and topic is listed in [Interfaces](Architec
 |---|---|
 | PX4 stops after `selected parameter backup file` and never connects | A PX4 startup command hung on PX4's local socket, or an old PX4 is still running. Kill everything and relaunch: `pkill -9 -f px4_sitl_default/bin/px4; pkill -9 -f px4-; rm -f /tmp/px4_lock-0 /tmp/px4-sock-0` |
 | Preflight checks fail after switching vehicles | Parameters reset when the airframe changes, but the stored mission does not. Stop PX4 and delete `build/px4_sitl_default/rootfs/dataman` |
+| Unity console: `[Vehicle] ... has problems, no vehicle built` | The spec failed its checks; the error lists each one. See [Vehicles](Vehicles#checks-and-the-load-summary) |
+| PX4: `ERROR [init] Unknown model unity_quadplane` | The generated airframe is not installed, or a PX4 rebuild removed it. Install it again ([PX4 airframe](Vehicles#px4-airframe)) |
 | Unity console: can't listen on TCP 4560 | Another Unity instance or simulator holds the port |
 | PX4 logs `poll timeout` | Unity is not stepping: play mode is paused or stopped |
 | Unity console: `lockstep paused` | PX4 sent no controls for three consecutive 1 s timeouts. Unity steps on its own until controls arrive again. Usually PX4 was killed without closing the socket |
 | QGC stays disconnected | Check that PX4 is running and nothing else holds UDP 14550 |
-| drone-2027 checks lose the XRCE-DDS agent in Docker on macOS | Docker Desktop's UDP forwarding breaks when the agent restarts, and each check starts and stops its own agent. Run the agent as the container's main process and pass `--no-agent` to each check |
+| drone-SW-26-27 checks lose the XRCE-DDS agent in Docker on macOS | Docker Desktop's UDP forwarding breaks when the agent restarts, and each check starts and stops its own agent. Run the agent as the container's main process and pass `--no-agent` to each check |

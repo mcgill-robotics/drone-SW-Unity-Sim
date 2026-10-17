@@ -10,7 +10,8 @@ namespace DroneSim
     /// Command-line options for standalone builds. Applied to each scene after Awake and before
     /// Start, so they take effect before PX4 or ROS connect.
     ///
-    ///   --scene NAME      Load this scene instead of the first one in the build (FlightX500, Flight)
+    ///   --vehicle NAME    Vehicle spec: a name in StreamingAssets/vehicles (x500, quadplane) or a
+    ///                     path to a .json file (see VehicleLoader)
     ///   --px4-port PORT   TCP port PX4 SITL connects to (default 4560)
     ///   --ros-ip IP       ROS TCP endpoint address (default 127.0.0.1)
     ///   --ros-port PORT   ROS TCP endpoint port (default 10000)
@@ -24,28 +25,20 @@ namespace DroneSim
         /// <summary>Path given with --config, or null. Read by SimConfig.</summary>
         public static string ConfigPath => Value("--config");
 
+        /// <summary>Spec given with --vehicle, or null. Read by VehicleLoader.</summary>
+        public static string VehicleName => Value("--vehicle");
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Init()
         {
+            if (Flag("--scene"))
+                Debug.LogError("[CommandLine] --scene is gone, there is one scene now: use --vehicle x500 (was FlightX500) or --vehicle quadplane (was Flight)");
             SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneLoaded += OnSceneLoaded;
         }
 
         private static void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            string wanted = Value("--scene");
-            if (wanted != null && wanted != scene.name)
-            {
-                if (Application.CanStreamedLevelBeLoaded(wanted))
-                {
-                    // Keep this scene's components from starting (opening ports) before it unloads.
-                    foreach (var root in scene.GetRootGameObjects()) root.SetActive(false);
-                    SceneManager.LoadScene(wanted);
-                    return;
-                }
-                Debug.LogError($"[CommandLine] No scene named {wanted} in this build");
-            }
-
             var bridge = UnityEngine.Object.FindAnyObjectByType<Px4HilBridge>();
             if (bridge != null && Int("--px4-port") is int px4Port) bridge.port = px4Port;
 

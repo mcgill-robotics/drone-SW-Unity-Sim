@@ -18,36 +18,36 @@ namespace DroneSim.Tests
         [Test]
         public void BodyToFrd_MapsAxes()
         {
-            AssertVec(new Vector3(1, 0, 0), Px4HilBridge.BodyToFrd(Vector3.forward));
-            AssertVec(new Vector3(0, 1, 0), Px4HilBridge.BodyToFrd(Vector3.right));
-            AssertVec(new Vector3(0, 0, 1), Px4HilBridge.BodyToFrd(Vector3.down));
+            AssertVec(new Vector3(1, 0, 0), Frames.BodyToFrd(Vector3.forward));
+            AssertVec(new Vector3(0, 1, 0), Frames.BodyToFrd(Vector3.right));
+            AssertVec(new Vector3(0, 0, 1), Frames.BodyToFrd(Vector3.down));
         }
 
         [Test]
         public void Accelerometer_AtRest_ReadsMinusGInFrdZ()
         {
             // Proper acceleration at rest points up; FRD z is down, so PX4 expects about -9.8.
-            AssertVec(new Vector3(0, 0, -9.81f), Px4HilBridge.BodyToFrd(new Vector3(0, 9.81f, 0)));
+            AssertVec(new Vector3(0, 0, -9.81f), Frames.BodyToFrd(new Vector3(0, 9.81f, 0)));
         }
 
         [Test]
         public void RateToFrd_RollRight_IsPositiveP()
         {
             // Unity +z rotation lifts the right wing (roll left), so right-wing-down is -z.
-            AssertVec(new Vector3(1, 0, 0), Px4HilBridge.RateToFrd(new Vector3(0, 0, -1)));
+            AssertVec(new Vector3(1, 0, 0), Frames.RateToFrd(new Vector3(0, 0, -1)));
         }
 
         [Test]
         public void RateToFrd_NoseUp_IsPositiveQ()
         {
             // Unity +x rotation drops the nose.
-            AssertVec(new Vector3(0, 1, 0), Px4HilBridge.RateToFrd(new Vector3(-1, 0, 0)));
+            AssertVec(new Vector3(0, 1, 0), Frames.RateToFrd(new Vector3(-1, 0, 0)));
         }
 
         [Test]
         public void RateToFrd_YawRight_IsPositiveR()
         {
-            AssertVec(new Vector3(0, 0, 1), Px4HilBridge.RateToFrd(new Vector3(0, 1, 0)));
+            AssertVec(new Vector3(0, 0, 1), Frames.RateToFrd(new Vector3(0, 1, 0)));
         }
 
         [Test]
@@ -74,7 +74,7 @@ namespace DroneSim.Tests
             {
                 Vector3 worldUnity = unity * body;
                 Vector3 expectedNed = new Vector3(worldUnity.z, worldUnity.x, -worldUnity.y);
-                AssertVec(expectedNed, ned * Px4HilBridge.BodyToFrd(body));
+                AssertVec(expectedNed, ned * Frames.BodyToFrd(body));
             }
         }
 

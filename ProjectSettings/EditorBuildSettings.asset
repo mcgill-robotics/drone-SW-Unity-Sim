@@ -6,9 +6,6 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/_Project/Scenes/FlightX500.unity
-    guid: 779aef2da51514c8b8bb4245dbe0fd41
-  - enabled: 1
     path: Assets/_Project/Scenes/Flight.unity
     guid: 1a07fa9959ca1493a9d300b803ee3820
   m_configObjects:

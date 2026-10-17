@@ -42,7 +42,8 @@ namespace DroneSim
             if (rb == null) { Debug.LogError("[ImuModel] No rigidbody"); enabled = false; return; }
 
             delayBuffer = SensorDelayBuffer.GetOrCreate(rb);
-            localOffset = rb.transform.InverseTransformPoint(transform.position);
+            // From the centre of mass, since the delay buffer's velocity is the centre of mass's.
+            localOffset = rb.transform.InverseTransformPoint(transform.position) - rb.centerOfMass;
             localRot = Quaternion.Inverse(rb.rotation) * transform.rotation;
             lastPointVelocity = rb.GetPointVelocity(transform.position);
 
