@@ -9,8 +9,9 @@ namespace DroneSim
 {
     /// <summary>
     /// Publishes a Unity camera as sensor_msgs/Image (or CompressedImage) plus CameraInfo.
-    /// Async GPU readback so the render thread is never stalled.
-    /// Configured from the inspector.
+    /// The camera is disabled and rendered only when a publish is due and the ROS endpoint is
+    /// connected, so it costs nothing otherwise. Async GPU readback so the render thread is never
+    /// stalled. Configured from the inspector.
     /// </summary>
     [RequireComponent(typeof(Camera))]
     public class CameraPublisher : ROSPublisher
@@ -36,6 +37,7 @@ namespace DroneSim
         protected override void Start()
         {
             cam = GetComponent<Camera>();
+            cam.enabled = false;
             base.Start();
             useBaseRateLimiting = false;
 
@@ -80,8 +82,9 @@ namespace DroneSim
             timeSinceLastPublish += Time.fixedDeltaTime;
             if (timeSinceLastPublish < timeBetweenPublishes) return;
             timeSinceLastPublish = 0f;
-            if (rt == null || !rt.IsCreated()) return;
+            if (rt == null || !rt.IsCreated() || ros.HasConnectionError) return;
 
+            cam.Render();
             var stamp = ROSClock.GetROSTimestamp();
             reading = true;
             AsyncGPUReadback.Request(rt, 0, TextureFormat.RGBA32, req => OnReadback(req, stamp));
