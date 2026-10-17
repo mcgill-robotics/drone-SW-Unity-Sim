@@ -11,7 +11,7 @@ namespace DroneSim
     {
         public const int ChannelCount = 16;
 
-        [Tooltip("Latest controls from PX4, -1..1")]
+        [Tooltip("Latest controls from PX4: motors 0..1, servos -1..1")]
         public float[] controls = new float[ChannelCount];
         public bool armed;
 

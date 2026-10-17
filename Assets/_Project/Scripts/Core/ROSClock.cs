@@ -27,8 +27,6 @@ namespace DroneSim
             return new TimeMsg { sec = secs, nanosec = nsecs };
         }
 
-        public static ulong GetMicroseconds() => (ulong)(SimTime * 1e6);
-
         protected override void Start()
         {
             _instance = this;

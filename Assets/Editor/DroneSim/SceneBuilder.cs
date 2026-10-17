@@ -53,7 +53,7 @@ namespace DroneSim.Editor
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
 
-            // Ground: a 4 km plane with a checker-ish material so motion is visible from altitude.
+            // Ground: a flat 4 km plane in plain green.
             var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
             ground.name = "Ground";
             ground.transform.localScale = new Vector3(400f, 1f, 400f);

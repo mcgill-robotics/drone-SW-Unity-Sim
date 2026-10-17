@@ -13,10 +13,9 @@ namespace DroneSim
     /// before the next step. Frames: PX4 wants body FRD and world NED; Unity is x right, y up,
     /// z forward with z as north. Conversions are in the helpers at the bottom.
     ///
-    /// Start PX4 (see docs/running.md):
-    ///   make px4_sitl
-    ///   PX4_SIM_MODEL=gazebo-classic_standard_vtol ./build/px4_sitl_default/bin/px4
-    /// That airframe starts simulator_mavlink, which dials TCP 4560. Gazebo itself never runs.
+    /// Start PX4 with the airframe that matches the scene (see docs/running.md): none_iris for the
+    /// X500, gazebo-classic_standard_vtol for the quadplane. Both start simulator_mavlink, which
+    /// dials TCP 4560. Gazebo itself never runs.
     /// </summary>
     [DefaultExecutionOrder(-10)]
     public class Px4HilBridge : MonoBehaviour, IResettable
