@@ -16,7 +16,9 @@ Assets/_Project/Scripts/     DroneSim assembly, namespace DroneSim
 Assets/Editor/DroneSim/      SceneBuilder (Flight.unity)
 Assets/StreamingAssets/      sim_config.json (cameras), vehicles/ (vehicle specs)
 Assets/Tests/EditMode/       Unit tests
-tools/                       px4_flight_test.py, px4_airframe.py
+Assets/Tests/PlayMode/       Flight scene and PX4 bridge tests (FakePx4 plays PX4's side)
+tools/                       px4_flight_test.py, px4_airframe.py, sim_smoke_test.py,
+                             coverage_summary.py; tests/ has their unit tests
 missions/                    QGroundControl mission for the quadplane
 ```
 
@@ -86,34 +88,57 @@ pusher channels on `ManualControl` updated to match.
 
 ## Tests
 
-Edit-mode unit tests cover MAVLink encoding (checked against frames from pymavlink), frame
-conversions, geodetic math, the magnetic field table, actuators, the camera config and the vehicle
-spec (FRD to Unity, inertia, checks, defaults, thrust tables, hover throttle, and that the
-shipped specs are valid and build).
+| Suite | Covers | Needs |
+|---|---|---|
+| Edit mode, `Assets/Tests/EditMode/` | MAVLink encoding (checked against frames from pymavlink), frame conversions, geodetic math, the magnetic field table, actuators, the camera config, the vehicle spec (FRD to Unity, inertia, checks, defaults, thrust tables, hover throttle, shipped specs valid and building) | Unity |
+| Play mode, `Assets/Tests/PlayMode/` | `Flight.unity` with each shipped vehicle and no PX4: builds, starts without errors, settles upright on the ground. The PX4 bridge over a real socket with `FakePx4` on the other end: sensors at rest, one HIL_SENSOR per step, lockstep, PX4 stopping and restarting, arming and lift-off | Unity |
+| Tools, `tools/tests/` | `px4_airframe.py` (rotor geometry, output functions, hover throttle, checks, constants shared with the C# code), `sim_smoke_test.py`, `coverage_summary.py` | Python 3 |
+| `tools/sim_smoke_test.py` | A running sim or player, from PX4's side of the link: sensors at rest, disarmed stays put, armed climbs | Python 3 |
+| `tools/px4_flight_test.py` | Takeoff, hover, transition and landing through PX4 ([Setup](Setup#flight-test-script)) | PX4 SITL, pymavlink |
 
-- In Unity: Window > General > Test Runner > EditMode > Run All.
-- From a terminal, with the editor closed, from the project folder:
+The play-mode tests and the smoke test pick up every spec in `StreamingAssets/vehicles/`, so a new
+vehicle is tested without touching them. Any logged error or exception fails a Unity test.
+
+Unity tests:
+
+- In Unity: Window > General > Test Runner > EditMode or PlayMode > Run All.
+- From a terminal, with the editor closed, from the project folder (`PlayMode` for play mode):
 
   ```bash
-  /Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/MacOS/Unity -batchmode -nographics \
+  /Applications/Unity/Hub/Editor/6000.6.0f1/Unity.app/Contents/MacOS/Unity -batchmode \
     -projectPath . -runTests -testPlatform EditMode -testResults results.xml -logFile test.log
   ```
 
-End-to-end: `tools/px4_flight_test.py` with PX4 connected ([Setup](Setup#flight-test-script)).
+Coverage: add `-enableCodeCoverage -coverageOptions "generateHtmlReport;assemblyFilters:+DroneSim"`
+to the command above (or use Window > Analysis > Code Coverage), then
+`python3 tools/coverage_summary.py CodeCoverage` for the table per file.
+
+Tool tests: `python3 -m unittest discover -s tools/tests -v`
+
+Smoke test, against a player or the editor in play mode with no PX4 running:
+
+```bash
+./drone-sim.x86_64 -batchmode -nographics --no-ros --vehicle quadplane &
+python3 tools/sim_smoke_test.py quadplane
+```
 
 ## CI
 
 GitHub Actions, using game-ci's Unity images:
 
-- `.github/workflows/tests.yml` runs the edit-mode tests on every push to `main` and every pull
-  request.
-- `.github/workflows/build.yml` builds Linux, Windows and macOS players. Run it from the Actions
-  tab, or push a tag such as `v0.1.0`; a tag also creates a draft release with the three builds
-  zipped.
+| Workflow | Runs on | Does |
+|---|---|---|
+| `tests.yml` | Pull requests, pushes to `main` that touch the Unity project | Edit- and play-mode tests. Line coverage of the `DroneSim` assembly per file in the job summary, HTML report as the `coverage` artifact |
+| `tools.yml` | Pull requests and pushes to `main` that touch `tools/`, vehicle specs or vehicle scripts | Tool tests, no Unity |
+| `build.yml` | Manual (Actions tab, Build, Run workflow) or a tag such as `v0.1.0` | Linux, Windows and macOS players, then the smoke test on the Linux player for each vehicle. A tag also drafts a release with the three builds zipped, once the smoke test passes |
+| `wiki.yml` | Pushes to `main` that touch `docs/` | Publishes `docs/` to the wiki |
 
-Both need a Unity license in the repository secrets: `UNITY_EMAIL`, `UNITY_PASSWORD` and either
-`UNITY_SERIAL` (Pro or Student license) or `UNITY_LICENSE` (contents of a Personal `.ulf` file).
-Only one Unity job runs at a time so they don't compete for the license.
+The Unity jobs need a Unity license in the repository secrets: `UNITY_EMAIL`, `UNITY_PASSWORD` and
+either `UNITY_SERIAL` (Pro or Student license) or `UNITY_LICENSE` (contents of a Personal `.ulf`
+file). Only one Unity job runs at a time so they don't compete for the license.
+
+The Unity test job is still called `Edit-mode tests`, though it runs play mode too: that name is the
+required status check in `main`'s ruleset. Rename both together.
 
 ## ROS topics
 
