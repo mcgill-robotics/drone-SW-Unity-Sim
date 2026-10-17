@@ -35,10 +35,6 @@ namespace DroneSim
         public string ForwardCamFrameId = "forward_camera_optical_frame";
         public string DownCamFrameId = "down_camera_optical_frame";
 
-        private void Awake()
-        {
-            if (_instance == null || _instance == this) { _instance = this; DontDestroyOnLoad(gameObject); }
-            else Destroy(gameObject);
-        }
+        private void Awake() => Instance = this;
     }
 }

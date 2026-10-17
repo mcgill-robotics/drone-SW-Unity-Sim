@@ -25,10 +25,6 @@ namespace DroneSim
         public static bool PublishROS => Instance != null && Instance.publishROS;
         public static Rigidbody Vehicle => Instance != null ? Instance.vehicle : null;
 
-        private void Awake()
-        {
-            if (_instance == null || _instance == this) { _instance = this; DontDestroyOnLoad(gameObject); }
-            else Destroy(gameObject);
-        }
+        private void Awake() => Instance = this;
     }
 }
