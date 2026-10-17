@@ -111,3 +111,6 @@ InitTestScene*.unity*
 # macOS
 .DS_Store
 results.xml
+
+# Python
+__pycache__/
