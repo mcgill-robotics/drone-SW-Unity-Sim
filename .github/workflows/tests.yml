@@ -1,18 +1,26 @@
 name: Tests
 
+# Every pull request, plus merges to main that touch the Unity project: that run tests the merged
+# result and saves the Library cache that later pull requests start from.
 on:
+  pull_request:
   push:
     branches: [main]
-  pull_request:
+    paths: ['Assets/**', 'Packages/**', 'ProjectSettings/**']
+  workflow_dispatch:
 
-# One Unity job at a time, so jobs don't compete for the license seat.
+# A newer run for the same pull request (or main) cancels the earlier one.
 concurrency:
-  group: unity-license
-  cancel-in-progress: false
+  group: tests-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   editmode:
     name: Edit-mode tests
+    # One Unity job at a time across workflows, so jobs don't compete for the license seat.
+    concurrency:
+      group: unity-license
+      cancel-in-progress: false
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
