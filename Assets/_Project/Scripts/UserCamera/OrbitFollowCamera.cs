@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace DroneSim
 {
-    /// <summary>Chase camera that orbits the vehicle. Right drag rotates, scroll zooms. From auv-sim-unity.</summary>
+    /// <summary>Chase camera that orbits the vehicle. Right drag rotates, scroll zooms.</summary>
     public class OrbitFollowCamera : MonoBehaviour
     {
         [SerializeField] private Transform targetOverride;

@@ -5,8 +5,7 @@ namespace DroneSim
 {
     /// <summary>
     /// Records the rigidbody state every physics step so sensors can read a delayed sample,
-    /// simulating bus, middleware and bridge latency. Ported from auv-sim-unity without the
-    /// DVL ping throttling.
+    /// simulating bus, middleware and bridge latency.
     /// </summary>
     [DefaultExecutionOrder(-75)]
     public class SensorDelayBuffer : MonoBehaviour, IResettable

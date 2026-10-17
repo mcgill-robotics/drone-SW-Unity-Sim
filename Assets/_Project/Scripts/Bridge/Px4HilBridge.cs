@@ -13,7 +13,7 @@ namespace DroneSim
     /// before the next step. Frames: PX4 wants body FRD and world NED; Unity is x right, y up,
     /// z forward with z as north. Conversions are in the helpers at the bottom.
     ///
-    /// Start PX4 with the airframe that matches the scene (see docs/running.md): none_iris for the
+    /// Start PX4 with the airframe that matches the scene (see the Setup page in the wiki): none_iris for the
     /// X500, gazebo-classic_standard_vtol for the quadplane. Both start simulator_mavlink, which
     /// dials TCP 4560. Gazebo itself never runs.
     /// </summary>

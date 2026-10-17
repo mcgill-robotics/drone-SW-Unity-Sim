@@ -8,7 +8,7 @@ namespace DroneSim
 {
     /// <summary>
     /// Ground truth pose (ENU, relative to the GeoOrigin), body twist (FLU) and NavSatFix.
-    /// For validating estimators and mapping. Adapted from auv-sim-unity.
+    /// For validating estimators and mapping.
     /// </summary>
     public class GroundTruthPublisher : ROSPublisher
     {

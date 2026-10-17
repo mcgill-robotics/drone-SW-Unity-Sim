@@ -9,8 +9,8 @@ namespace DroneSim
 {
     /// <summary>
     /// Publishes a Unity camera as sensor_msgs/Image (or CompressedImage) plus CameraInfo.
-    /// Async GPU readback so the render thread is never stalled. Ported from auv-sim-unity,
-    /// configured from the inspector instead of a global settings object.
+    /// Async GPU readback so the render thread is never stalled.
+    /// Configured from the inspector.
     /// </summary>
     [RequireComponent(typeof(Camera))]
     public class CameraPublisher : ROSPublisher

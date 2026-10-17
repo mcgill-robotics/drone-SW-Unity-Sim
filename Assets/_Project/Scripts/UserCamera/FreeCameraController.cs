@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace DroneSim
 {
-    /// <summary>Editor-style fly camera: left drag pans, right drag orbits, scroll zooms. From auv-sim-unity.</summary>
+    /// <summary>Editor-style fly camera: left drag pans, right drag orbits, scroll zooms.</summary>
     public class FreeCameraController : MonoBehaviour
     {
         public Camera cam;

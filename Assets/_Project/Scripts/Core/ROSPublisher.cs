@@ -6,7 +6,6 @@ namespace DroneSim
     /// <summary>
     /// Base class for ROS publishers. Handles connection, registration and rate-limited publishing
     /// from FixedUpdate. Subclasses that need their own cadence set useBaseRateLimiting = false.
-    /// Ported from auv-sim-unity.
     /// </summary>
     public abstract class ROSPublisher : MonoBehaviour
     {

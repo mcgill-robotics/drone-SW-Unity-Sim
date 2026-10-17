@@ -6,7 +6,7 @@ namespace DroneSim
 {
     /// <summary>
     /// Publishes /clock from simulated time and hands out timestamps to every other publisher,
-    /// so stamps stay consistent when Time.timeScale != 1. Ported from auv-sim-unity.
+    /// so stamps stay consistent when Time.timeScale != 1.
     /// </summary>
     public class ROSClock : ROSPublisher
     {

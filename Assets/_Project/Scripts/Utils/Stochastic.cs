@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace DroneSim
 {
-    /// <summary>Gaussian noise helpers. Ported from auv-sim-unity.</summary>
+    /// <summary>Gaussian noise helpers.</summary>
     public static class Stochastic
     {
         public static float GenerateGaussian()

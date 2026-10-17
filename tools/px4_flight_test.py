@@ -1,6 +1,6 @@
 """Fly the sim through PX4 SITL's MAVLink API port (UDP 14540) and check that each step works.
 
-Start Unity (play mode) and PX4 SITL first, see docs/running.md. Then:
+Start Unity (play mode) and PX4 SITL first, see the Setup page in the wiki. Then:
 
     pip install pymavlink
     python3 tools/px4_flight_test.py hover            # any vehicle: take off, hover, land

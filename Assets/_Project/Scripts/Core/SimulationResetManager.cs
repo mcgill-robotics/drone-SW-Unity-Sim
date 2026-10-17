@@ -7,7 +7,6 @@ namespace DroneSim
     /// <summary>
     /// Snaps the vehicle back to its start pose on demand, from ROS (/simulation/reset) or the R key.
     /// Optionally randomizes mass, thrust and wind so tuning runs see a spread of plants.
-    /// Slimmed down from auv-sim-unity.
     /// </summary>
     [DefaultExecutionOrder(-50)]
     public class SimulationResetManager : MonoBehaviour
