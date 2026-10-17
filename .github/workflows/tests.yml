@@ -32,6 +32,7 @@ jobs:
           restore-keys: Library-Test-
 
       - uses: game-ci/unity-test-runner@v4
+        id: tests
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -41,3 +42,18 @@ jobs:
           testMode: editmode
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           checkName: Edit-mode test results
+          # Coverage is on by default (coverageEnabled) and uses the Code Coverage package from the
+          # project's Engineering feature set. Only the sim's own assembly is measured, not the
+          # tests or packages; dontClear keeps every test run's results for the merged report.
+          coverageOptions: 'generateAdditionalMetrics;generateHtmlReport;dontClear;assemblyFilters:+DroneSim'
+
+      - name: Coverage summary
+        if: ${{ !cancelled() }}
+        run: python3 tools/coverage_summary.py "${{ steps.tests.outputs.coveragePath || 'CodeCoverage' }}" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage
+          path: ${{ steps.tests.outputs.coveragePath || 'CodeCoverage' }}
+          if-no-files-found: warn
