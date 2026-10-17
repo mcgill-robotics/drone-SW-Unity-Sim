@@ -1,0 +1,1 @@
+Published from [`docs/`](https://github.com/mcgill-robotics/drone-SW-Unity-Sim/tree/main/docs) in the repository. Edit the pages there through a pull request; edits made on the wiki are overwritten by the next publish.

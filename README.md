@@ -11,6 +11,8 @@ Documentation is in the [wiki](https://github.com/mcgill-robotics/drone-SW-Unity
 [Setup](https://github.com/mcgill-robotics/drone-SW-Unity-Sim/wiki/Setup),
 [Architecture](https://github.com/mcgill-robotics/drone-SW-Unity-Sim/wiki/Architecture),
 [Development](https://github.com/mcgill-robotics/drone-SW-Unity-Sim/wiki/Development).
+The pages live in `docs/` and are published to the wiki when they change on `main`, so edit them
+there in the same pull request as the code they describe.
 
 ## Quick start
 
