@@ -1,0 +1,71 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+# Shared with the test workflow: one Unity job at a time for the license seat.
+concurrency:
+  group: unity-license
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build ${{ matrix.targetPlatform }}
+    runs-on: ubuntu-24.04
+    strategy:
+      max-parallel: 1
+      fail-fast: false
+      matrix:
+        targetPlatform: [StandaloneLinux64, StandaloneWindows64, StandaloneOSX]
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/cache@v6
+        with:
+          path: Library
+          key: Library-${{ matrix.targetPlatform }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: Library-${{ matrix.targetPlatform }}-
+
+      - uses: game-ci/unity-builder@v6
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+          UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+        with:
+          targetPlatform: ${{ matrix.targetPlatform }}
+          buildName: drone-sim
+          buildsPath: build
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: drone-sim-${{ matrix.targetPlatform }}
+          path: build/${{ matrix.targetPlatform }}
+
+  release:
+    name: Draft release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+
+      - name: Zip each platform
+        run: |
+          mkdir release
+          for dir in artifacts/*/; do
+            name=$(basename "$dir")
+            (cd "$dir" && zip -qr -9 "$GITHUB_WORKSPACE/release/$name.zip" .)
+          done
+
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: release/*.zip
+          draft: true
+          generate_release_notes: true
