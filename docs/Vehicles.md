@@ -48,7 +48,7 @@ the default.
 | `massProperties` | [Mass properties](#massproperties) |
 | `collider` | [Collider](#collider) |
 | `rotors` | List of [rotors](#rotors), at least one |
-| `wings` | List of [wings](#wings), optional. The quadplane has one; the X500 none |
+| `wings` | List of at most one [wing](#wings), optional. The quadplane has one; the X500 none |
 | `controlSurfaces` | List of [control surfaces](#controlsurfaces), optional |
 | `imu` | [IMU mount](#imu) |
 | `cameras` | List of [camera mounts](#cameras), optional |
@@ -69,8 +69,10 @@ The inertia tensor's off-diagonal terms are the negatives of these; the sim does
 (`InertiaSpec.Matrix` in `VehicleSpec.cs`), so paste the CAD values as they are. If CAD reports
 inertia about its origin rather than the CG, translate it to the CG first.
 
-The load summary warns when the principal moments break the triangle inequality
-(for example `ixx + iyy < izz`), which no real body does.
+Principal moments that are not all positive (usually a sign slip in the products) are a problem:
+Unity rejects such a tensor and would fall back to the collider's inertia. The load summary warns
+when the principal moments break the triangle inequality (for example `ixx + iyy < izz`), which no
+real body does.
 
 ### collider
 
@@ -100,7 +102,7 @@ that split.
 | `thrustTable` | | | CSV file next to the spec, see [Thrust tables](#thrust-tables). Replaces `maxThrust` |
 | `momentRatio` | m | 0.016 | Reaction torque per newton of thrust, PX4's `CA_ROTORn_KM` without the sign. Ignored when the thrust table has a torque column |
 | `timeConstant` | s | 0.05 | First-order spin-up lag. Must be positive |
-| `idle` | | 0 | Speed when armed at zero throttle, as a fraction of full speed. 0 to 0.5. The Gazebo X500 idles at 0.15 |
+| `idle` | | 0 | Speed when armed at zero throttle, as a fraction of full speed. 0 to 0.5. The Gazebo X500 idles at 0.15. Must be 0 with a `thrustTable` |
 | `source` | | | [Source](#sources) |
 
 Speed is `idle + (1 - idle) x throttle`, where throttle is what PX4 commands (0..1), so with
@@ -120,12 +122,14 @@ For a motor with test-stand or datasheet data. A CSV next to the spec, named in 
 1.0, 31.5, 0.49
 ```
 
-- Columns: throttle 0..1, thrust in N, and optionally reaction torque in N m. Every row has the
-  same number of columns.
+- Columns: throttle as PX4 commands it (0..1), thrust in N, and optionally reaction torque in
+  N m. Every row has the same number of columns.
+- Idle is in the table: the first row is what the motor makes armed at zero throttle, so `idle`
+  must be 0. A disarmed motor makes nothing.
 - Throttle increases row by row; at least two rows. Lines that do not start with a digit, `.` or
   `-` (comments, a header) are skipped.
-- Thrust and torque are interpolated linearly between rows and clamped at the ends. Without a
-  torque column, torque is thrust x `momentRatio`.
+- Thrust and torque are interpolated linearly between rows and clamped at the ends, then follow
+  through the `timeConstant` lag. Without a torque column, torque is thrust x `momentRatio`.
 - The table's largest thrust is the rotor's max thrust in the summary and the airframe generator.
 
 A table with a torque column also sets `CA_ROTORn_KM` in the generated airframe, from the
@@ -133,7 +137,8 @@ torque/thrust ratio at the highest-thrust row.
 
 ### wings
 
-Whole-airframe aerodynamics as one lifting body, applied at the aerodynamic centre; the fields
+Whole-airframe aerodynamics as one lifting body, tail included, applied at the aerodynamic
+centre, so at most one entry; the fields
 match the `Wing` component ([Vehicle model](Architecture#vehicle-model)). Only `aeroCenter`,
 `area`, `span` and `chord` are required; every coefficient defaults to the placeholder
 quadplane's value, which is plausible for a conventional airframe, not measured.
@@ -225,9 +230,10 @@ missing under `Estimated, not measured`, so the list shrinks as real numbers rep
 
 On load the spec is checked (`VehicleSpec.Problems`). If anything is wrong, the Unity console
 lists every problem in one error and no vehicle is built; the PX4 bridge then disables itself
-with its own error, so PX4 cannot connect. Checks include: positive mass and inertia diagonal, 3-element vectors,
-channels in range and unique, `ccw`/`cw`, `maxThrust` or a readable `thrustTable`, known control
-surface types, `px4` fields set.
+with its own error, so PX4 cannot connect. Checks include: positive mass, inertia diagonal and
+principal moments, 3-element vectors, channels in range and unique, `ccw`/`cw`, `maxThrust` or a
+readable `thrustTable`, `idle` 0 with a table, at most one wing, known control surface types,
+complete visual shapes, `px4` fields set.
 
 A valid spec logs a summary like this one for the X500:
 
@@ -246,9 +252,9 @@ Vehicle x500: 2 kg, 4 rotors, 0 control surfaces, no wing
 | Wing | Span, area, wing loading and the stall speed at sea level |
 | Estimated, not measured | Sections whose `source` is `estimate` or missing |
 
-Warnings, logged separately: thrust/weight under 1.5 (aim for 1.8 or more), hover throttle over
-80%, CG more than 10% of the rotor arm from the lift rotor centre, inertia that breaks the triangle
-inequality, no lift rotors.
+Warnings, logged separately: thrust/weight under 1.5 (aim for 1.8 or more), a lift rotor that
+can't make its share of the weight, hover throttle over 80%, CG more than 10% of the rotor arm from
+the lift rotor centre, inertia that breaks the triangle inequality, no lift rotors.
 
 ## Example
 
@@ -322,7 +328,11 @@ tuning and then sets, from the spec:
 - `CA_SV_CS_COUNT`, and for each control surface `CA_SV_CSn_TYPE` and `CA_SV_CSn_TRQ_R/P/Y`.
 - `PWM_MAIN_FUNC1..16`: motor n on the rotor's channel, servo n on the surface's channel, 0
   elsewhere.
-- `MPC_THR_HOVER`: the hover throttle from the summary, clamped to PX4's 0.1 to 0.8 range.
+- `MPC_THR_HOVER`: the hover throttle from the summary, clamped to PX4's 0.1 to 0.8 range. Left
+  out when a lift rotor can't make its share of the weight.
+
+The script runs the same checks as Unity on the fields it reads (rotors, control surfaces, channels,
+`px4`) and writes nothing if one fails; Unity checks the rest of the spec when it loads it.
 
 Print it:
 

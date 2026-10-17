@@ -31,6 +31,8 @@ namespace DroneSim
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Init()
         {
+            if (Flag("--scene"))
+                Debug.LogError("[CommandLine] --scene is gone, there is one scene now: use --vehicle x500 (was FlightX500) or --vehicle quadplane (was Flight)");
             SceneManager.sceneLoaded -= OnSceneLoaded;
             SceneManager.sceneLoaded += OnSceneLoaded;
         }

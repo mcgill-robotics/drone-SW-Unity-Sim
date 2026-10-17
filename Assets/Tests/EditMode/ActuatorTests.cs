@@ -65,6 +65,82 @@ namespace DroneSim.Tests
             Assert.AreEqual(0.4f, left.Commanded, 1e-6f);
         }
 
+        [TestCase(1f, 0f, 0f)]
+        [TestCase(0f, 1f, 0f)]
+        [TestCase(0f, 0f, 1f)]
+        [TestCase(-0.5f, 0.2f, 0.3f)]
+        public void ControlSurface_MomentInFrd_IsTheTorqueVector(float roll, float pitch, float yaw)
+        {
+            // PX4's CA_SV_CSn_TRQ_R/P/Y is the FRD moment of a positive deflection.
+            var torque = new Vector3(roll, pitch, yaw);
+            Vector3 frd = Frames.RateToFrd(ControlSurface.BodyTorque(torque, 2f));
+            Assert.Less(Vector3.Distance(2f * torque, frd), 1e-6f, $"got {frd}");
+        }
+
+        [Test]
+        public void ControlSurface_LeftAileron_RollsLeft()
+        {
+            // Unity: +z rotation lifts the right wing, so rolling left is a positive z moment.
+            Vector3 m = ControlSurface.BodyTorque(new Vector3(-0.5f, 0f, 0f), 1f);
+            Assert.Greater(m.z, 0f);
+            Assert.AreEqual(0f, m.x);
+            Assert.AreEqual(0f, m.y);
+        }
+
+        static Rotor TableRotor(GameObject go)
+        {
+            var r = go.AddComponent<Rotor>();
+            r.channel = 0;
+            r.timeConstant = 0.02f;
+            r.idleSpeed = 0.15f;                 // ignored with a table
+            r.tableThrottle = new[] { 0.05f, 0.5f, 1f };
+            r.tableThrust = new[] { 0.4f, 6f, 20f };
+            r.maxThrust = 20f;
+            r.maxTorque = 0.3f;
+            return r;
+        }
+
+        static void Settle(Rotor r) { for (int i = 0; i < 500; i++) r.Step(0.004f); }
+
+        [TestCase(0.5f, 6f)]
+        [TestCase(0.75f, 13f)]
+        [TestCase(1f, 20f)]
+        public void Rotor_Table_IsLookedUpOnPx4Throttle(float px4, float thrust)
+        {
+            var r = TableRotor(go);
+            r.Apply(Controls(0, px4), armed: true);
+            Assert.AreEqual(px4, r.Commanded, 1e-6f);
+            Settle(r);
+            Assert.AreEqual(thrust, r.Thrust, 1e-3f);
+            Assert.AreEqual(thrust * 0.3f / 20f, r.Torque, 1e-4f);
+        }
+
+        [Test]
+        public void Rotor_Table_StopsWhenDisarmed()
+        {
+            var r = TableRotor(go);
+            r.Apply(Controls(0, 0f), armed: true);
+            Settle(r);
+            Assert.AreEqual(0.4f, r.Thrust, 1e-3f, "armed at zero throttle makes the first row's thrust");
+            r.Apply(Controls(0, 0f), armed: false);
+            Settle(r);
+            Assert.AreEqual(0f, r.Thrust, 1e-6f);
+            Assert.AreEqual(0f, r.Torque, 1e-6f);
+        }
+
+        [Test]
+        public void Rotor_NoTable_ThrustIsSpeedSquaredWithIdle()
+        {
+            var r = go.AddComponent<Rotor>();
+            r.maxThrust = 8f;
+            r.maxTorque = 0.128f;
+            r.idleSpeed = 0.15f;
+            r.Apply(Controls(r.channel, 0.5f), armed: true);
+            Settle(r);
+            Assert.AreEqual(8f * 0.575f * 0.575f, r.Thrust, 1e-4f);
+            Assert.AreEqual(0.128f * 0.575f * 0.575f, r.Torque, 1e-5f);
+        }
+
         [TestCase(-1f, 0f)]
         [TestCase(0f, 0f)]
         [TestCase(0.25f, 1.5f)]
@@ -74,6 +150,19 @@ namespace DroneSim.Tests
         public void Rotor_Interpolate_IsPiecewiseLinearAndClamped(float x, float y)
         {
             Assert.AreEqual(y, Rotor.Interpolate(new[] { 0f, 0.5f, 1f }, new[] { 0f, 3f, 7f }, x), 1e-5f);
+        }
+
+        [Test]
+        public void Rotor_Interpolate_LongTable()
+        {
+            var xs = new float[101];
+            var ys = new float[101];
+            for (int i = 0; i <= 100; i++) { xs[i] = i / 100f; ys[i] = 3f * i; }
+            for (int i = 0; i < 100; i++)
+            {
+                Assert.AreEqual(ys[i], Rotor.Interpolate(xs, ys, xs[i]), 1e-3f);
+                Assert.AreEqual(ys[i] + 1.5f, Rotor.Interpolate(xs, ys, xs[i] + 0.005f), 1e-3f);
+            }
         }
 
         [Test]

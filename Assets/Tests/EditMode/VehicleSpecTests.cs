@@ -89,17 +89,95 @@ namespace DroneSim.Tests
             Assert.AreEqual(0.05f, r.timeConstant);
         }
 
+        static string TempTable(string csv)
+        {
+            string dir = Path.Combine(Path.GetTempPath(), "vehicle_spec_test_" + System.Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, "motor.csv"), csv);
+            return dir;
+        }
+
         [Test]
         public void ThrustTable_LoadsAndInverts()
         {
-            string dir = Path.Combine(Path.GetTempPath(), "vehicle_spec_test");
-            Directory.CreateDirectory(dir);
-            File.WriteAllText(Path.Combine(dir, "motor.csv"), "throttle,thrust_n\n0,0\n0.5,6\n1.0,20\n");
-            var r = new RotorSpec { name = "r", thrustTable = "motor.csv" };
-            Assert.AreEqual(20f, r.MaxThrust(dir));
-            Assert.AreEqual(0.5f, r.ThrottleFor(6f, dir), 1e-5f);
-            Assert.AreEqual(0.75f, r.ThrottleFor(13f, dir), 1e-5f);
-            Assert.IsNaN(r.ThrottleFor(25f, dir));
+            string dir = TempTable("throttle,thrust_n\n0,0\n0.5,6\n1.0,20\n");
+            try
+            {
+                var r = new RotorSpec { name = "r", thrustTable = "motor.csv" };
+                Assert.AreEqual(20f, r.MaxThrust(dir));
+                Assert.AreEqual(0.5f, r.ThrottleFor(6f, dir), 1e-5f);
+                Assert.AreEqual(0.75f, r.ThrottleFor(13f, dir), 1e-5f);
+                Assert.IsNaN(r.ThrottleFor(25f, dir));
+            }
+            finally { Directory.Delete(dir, true); }
+        }
+
+        [Test]
+        public void ThrustTable_WithIdle_IsAProblem()
+        {
+            var spec = Shipped("quadplane");
+            spec.directory = TempTable("0,0\n1,30\n");
+            try
+            {
+                spec.rotors[4].thrustTable = "motor.csv";
+                Assert.IsEmpty(spec.Problems());
+                spec.rotors[4].idle = 0.1f;
+                Assert.IsTrue(spec.Problems().Any(s => s.Contains("idle must be 0 with a thrustTable")));
+            }
+            finally { Directory.Delete(spec.directory, true); }
+        }
+
+        [Test]
+        public void HoverThrottle_IsNaN_WhenOneLiftRotorFallsShort()
+        {
+            // 6.5 kg over 4 rotors needs 15.9 N each; one rotor makes 10.
+            var spec = Shipped("quadplane");
+            spec.rotors[3].maxThrust = 10f;
+            Assert.IsNaN(spec.HoverThrottle());
+            spec.Summary(out var warnings);
+            Assert.IsTrue(warnings.Any(w => w.Contains("can't hover")), string.Join("; ", warnings));
+        }
+
+        [Test]
+        public void Problems_FlagsBadVisuals()
+        {
+            var spec = Shipped("x500");
+            spec.visuals[0].size = null;
+            spec.visuals[1].position = new[] { 0f, 0f };
+            spec.visuals[2].shape = "cylinder";
+            spec.visuals[2].diameter = 0f;
+            var p = spec.Problems();
+            Assert.IsTrue(p.Any(s => s.Contains($"visual {spec.visuals[0].name}: size")), string.Join("; ", p));
+            Assert.IsTrue(p.Any(s => s.Contains($"visual {spec.visuals[1].name}: position")));
+            Assert.IsTrue(p.Any(s => s.Contains($"visual {spec.visuals[2].name}: diameter")));
+        }
+
+        [Test]
+        public void Problems_FlagsInertiaWithANegativePrincipalMoment()
+        {
+            var spec = Shipped("quadplane");
+            spec.massProperties.inertia = new InertiaSpec { ixx = 0.4f, iyy = 0.6f, izz = 0.5f, ixz = 0.6f };
+            Assert.Less(spec.PrincipalInertia().x, 0f);
+            var p = spec.Problems();
+            Assert.IsTrue(p.Any(s => s.Contains("principal moments")), string.Join("; ", p));
+        }
+
+        [Test]
+        public void Problems_FlagsASecondWing()
+        {
+            var spec = Shipped("quadplane");
+            spec.wings = new[] { spec.wings[0], spec.wings[0] };
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("at most one wing")));
+        }
+
+        [Test]
+        public void Builder_DestroysAHalfBuiltVehicle()
+        {
+            var spec = Shipped("x500");
+            spec.visuals[0].size = null;         // skips Problems; AddVisual throws
+            int before = Object.FindObjectsByType<Rigidbody>(FindObjectsSortMode.None).Length;
+            Assert.Throws<System.NullReferenceException>(() => VehicleBuilder.Build(spec, Vector3.zero));
+            Assert.AreEqual(before, Object.FindObjectsByType<Rigidbody>(FindObjectsSortMode.None).Length);
         }
 
         [Test]

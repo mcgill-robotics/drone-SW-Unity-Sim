@@ -12,11 +12,26 @@ namespace DroneSim
     {
         /// <summary>
         /// Builds the vehicle with its datum at position. Place it there from the start: a rigidbody
-        /// created inside the ground and moved out afterwards gets thrown through it.
+        /// created inside the ground and moved out afterwards gets thrown through it. Expects a spec
+        /// with no Problems; if building throws anyway, the half-built vehicle is destroyed.
         /// </summary>
         public static GameObject Build(VehicleSpec spec, Vector3 position)
         {
             var root = new GameObject("Vehicle");
+            try
+            {
+                Populate(root, spec, position);
+                return root;
+            }
+            catch
+            {
+                Object.DestroyImmediate(root);
+                throw;
+            }
+        }
+
+        static void Populate(GameObject root, VehicleSpec spec, Vector3 position)
+        {
             root.transform.position = position;
             var rb = root.AddComponent<Rigidbody>();
             rb.mass = spec.massProperties.mass;
@@ -53,7 +68,6 @@ namespace DroneSim
             foreach (var c in spec.cameras) AddCamera(root, c);
 
             root.AddComponent<VehicleActuators>();
-            return root;
         }
 
         /// <summary>

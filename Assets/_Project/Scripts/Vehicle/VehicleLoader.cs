@@ -31,8 +31,12 @@ namespace DroneSim
                 return;
             }
 
-            var root = VehicleBuilder.Build(spec, new Vector3(0f, VehicleBuilder.SpawnHeight(spec), 0f));
-            SimSettings.Instance.vehicle = root.GetComponent<Rigidbody>();
+            GameObject root;
+            try { root = VehicleBuilder.Build(spec, new Vector3(0f, VehicleBuilder.SpawnHeight(spec), 0f)); }
+            catch (Exception e) { Debug.LogError($"[Vehicle] building {path} failed, no vehicle built: {e}"); return; }
+
+            if (SimSettings.Instance != null) SimSettings.Instance.vehicle = root.GetComponent<Rigidbody>();
+            else Debug.LogError("[Vehicle] no SimSettings in the scene, so sensors and the PX4 bridge can't find the vehicle");
             Loaded = spec;
 
             Debug.Log($"[Vehicle] loaded {path}\n{spec.Summary(out var warnings)}");

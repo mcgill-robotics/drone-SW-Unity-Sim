@@ -47,13 +47,15 @@ namespace DroneSim
             Deflection = Mathf.Lerp(Deflection, commanded, Mathf.Clamp01(Time.fixedDeltaTime / Mathf.Max(timeConstant, 1e-3f)));
 
             Vector3 airVel = rb.linearVelocity - Wind.At(rb.position);
-            float q = 0.5f * (wing != null ? wing.airDensity : 1.225f) * airVel.sqrMagnitude;
-            float m = q * momentCoefficient * Deflection;
-
-            // Unity body axes are left-handed. Positive roll = right wing down, positive pitch = nose up,
-            // positive yaw = nose right; the signs below make a positive torque component do that.
-            rb.AddTorque(rb.transform.forward * (-m * torque.x) + rb.transform.right * (-m * torque.y) +
-                         rb.transform.up * (m * torque.z), ForceMode.Force);
+            float q = 0.5f * (wing != null ? wing.airDensity : Wing.SeaLevelDensity) * airVel.sqrMagnitude;
+            rb.AddTorque(rb.transform.TransformDirection(BodyTorque(torque, q * momentCoefficient * Deflection)), ForceMode.Force);
         }
+
+        /// <summary>
+        /// Moment m along a roll, pitch, yaw torque vector, in Unity body axes. Unity's axes are
+        /// left-handed: positive roll (right wing down) is about -z, positive pitch (nose up) about
+        /// -x, positive yaw (nose right) about +y. Frames.RateToFrd maps it back to m x torque.
+        /// </summary>
+        public static Vector3 BodyTorque(Vector3 torque, float m) => new Vector3(-m * torque.y, m * torque.z, -m * torque.x);
     }
 }

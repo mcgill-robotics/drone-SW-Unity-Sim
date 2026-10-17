@@ -6,6 +6,8 @@ namespace DroneSim
     /// <summary>
     /// Receives the 16 normalized actuator controls from PX4 and hands each channel to whichever
     /// Rotor or ControlSurface claims it. Also lets the keyboard drive channels when PX4 is absent.
+    /// Controls reach the actuators as soon as they arrive, so this step's rotors and surfaces use
+    /// them whatever order Unity runs their FixedUpdate in.
     /// </summary>
     public class VehicleActuators : MonoBehaviour, IResettable
     {
@@ -27,10 +29,6 @@ namespace DroneSim
             int n = Mathf.Min(values.Length, ChannelCount);
             for (int i = 0; i < n; i++) controls[i] = values[i];
             armed = isArmed;
-        }
-
-        private void FixedUpdate()
-        {
             foreach (var a in actuators) a.Apply(controls, armed);
         }
 

@@ -12,6 +12,10 @@ namespace DroneSim
     /// set, for motors with test-stand or datasheet data. Reaction torque follows the torque table
     /// if there is one, else thrust x maxTorque / maxThrust.
     ///
+    /// A thrust table is measured against the throttle PX4 commands, idle included, so idleSpeed
+    /// doesn't apply to it and the lag acts on its thrust and torque; a disarmed motor makes none
+    /// whatever the table's first row says.
+    ///
     /// Spin direction follows PX4's CA_ROTORn_KM sign: +1 for a CCW rotor (seen from above), whose
     /// reaction torque yaws the body nose-right, which is +Y torque in Unity's left-handed axes.
     /// </summary>
@@ -25,47 +29,79 @@ namespace DroneSim
         [Tooltip("Reaction torque at full throttle (N m)")] public float maxTorque = 0.3f;
         [Tooltip("+1 for CCW seen from above (PX4 CA_ROTORn_KM > 0), -1 for CW")] public int spinDirection = 1;
         [Tooltip("Spin-up time constant (s)")] public float timeConstant = 0.05f;
-        [Tooltip("Fraction of full speed when armed at zero command (Gazebo's SIM_GZ_EC_MIN / MAX)")]
+        [Tooltip("Fraction of full speed when armed at zero command (Gazebo's SIM_GZ_EC_MIN / MAX). Not used with a thrust table")]
         [Range(0f, 0.5f)] public float idleSpeed = 0f;
         [Tooltip("Runtime multiplier used by domain randomization")] public float efficiency = 1f;
 
         [Header("Thrust table (optional)")]
-        [Tooltip("Throttle points 0..1, increasing")] public float[] tableThrottle;
+        [Tooltip("Throttle points 0..1 as PX4 commands them, increasing")] public float[] tableThrottle;
         [Tooltip("Thrust at each throttle point (N)")] public float[] tableThrust;
         [Tooltip("Reaction torque at each throttle point (N m); empty to use maxTorque / maxThrust")] public float[] tableTorque;
 
         public bool HasTable => tableThrottle != null && tableThrust != null && tableThrottle.Length >= 2 && tableThrust.Length == tableThrottle.Length;
 
-        /// <summary>Speed PX4 is asking for as a fraction of full, after idle, before the spin-up lag.</summary>
+        /// <summary>
+        /// What PX4 is asking for, before the lag: speed as a fraction of full, after idle, or with a
+        /// thrust table the throttle itself. 0 when disarmed.
+        /// </summary>
         public float Commanded => commanded;
+        /// <summary>Commanded after the spin-up lag.</summary>
         public float Throttle { get; private set; }
         public float Thrust { get; private set; }
+        /// <summary>Reaction torque magnitude (N m); its sign comes from spinDirection.</summary>
+        public float Torque { get; private set; }
 
         private Rigidbody rb;
         private float commanded;
+        private bool running;
+        private float tableThrustLagged, tableTorqueLagged;
 
         private void Awake() => rb = GetComponentInParent<Rigidbody>();
 
         public void Apply(float[] controls, bool armed)
         {
-            commanded = armed && channel < controls.Length ? idleSpeed + (1f - idleSpeed) * Mathf.Clamp01(controls[channel]) : 0f;
+            running = armed && channel < controls.Length;
+            float c = running ? Mathf.Clamp01(controls[channel]) : 0f;
+            commanded = !running ? 0f : HasTable ? c : idleSpeed + (1f - idleSpeed) * c;
         }
 
-        public void ResetActuator() { commanded = 0f; Throttle = 0f; Thrust = 0f; }
+        public void ResetActuator()
+        {
+            running = false;
+            commanded = 0f; Throttle = 0f; Thrust = 0f; Torque = 0f;
+            tableThrustLagged = 0f; tableTorqueLagged = 0f;
+        }
 
         private void FixedUpdate()
         {
             if (rb == null) return;
-            float alpha = Time.fixedDeltaTime / Mathf.Max(timeConstant, 1e-3f);
-            Throttle = Mathf.Lerp(Throttle, commanded, Mathf.Clamp01(alpha));
+            Step(Time.fixedDeltaTime);
+            Vector3 axis = transform.up;
+            rb.AddForceAtPosition(axis * Thrust, transform.position, ForceMode.Force);
+            rb.AddTorque(axis * (Torque * spinDirection), ForceMode.Force);
+        }
+
+        /// <summary>Advances the spin-up lag by dt and sets Throttle, Thrust and Torque.</summary>
+        public void Step(float dt)
+        {
+            float alpha = Mathf.Clamp01(dt / Mathf.Max(timeConstant, 1e-3f));
+            Throttle = Mathf.Lerp(Throttle, commanded, alpha);
 
             float thrust, torque;
             if (HasTable)
             {
-                thrust = Interpolate(tableThrottle, tableThrust, Throttle);
-                torque = tableTorque != null && tableTorque.Length == tableThrottle.Length
-                    ? Interpolate(tableThrottle, tableTorque, Throttle)
-                    : thrust * maxTorque / Mathf.Max(maxThrust, 1e-6f);
+                float targetThrust = 0f, targetTorque = 0f;
+                if (running)
+                {
+                    targetThrust = Interpolate(tableThrottle, tableThrust, commanded);
+                    targetTorque = tableTorque != null && tableTorque.Length == tableThrottle.Length
+                        ? Interpolate(tableThrottle, tableTorque, commanded)
+                        : targetThrust * maxTorque / Mathf.Max(maxThrust, 1e-6f);
+                }
+                tableThrustLagged = Mathf.Lerp(tableThrustLagged, targetThrust, alpha);
+                tableTorqueLagged = Mathf.Lerp(tableTorqueLagged, targetTorque, alpha);
+                thrust = tableThrustLagged;
+                torque = tableTorqueLagged;
             }
             else
             {
@@ -74,18 +110,22 @@ namespace DroneSim
                 torque = maxTorque * w2;
             }
             Thrust = thrust * efficiency;
-            Vector3 axis = transform.up;
-            rb.AddForceAtPosition(axis * Thrust, transform.position, ForceMode.Force);
-            rb.AddTorque(axis * (torque * spinDirection), ForceMode.Force);
+            Torque = torque;
         }
 
         /// <summary>Piecewise-linear lookup, clamped at both ends. xs must be increasing.</summary>
         public static float Interpolate(float[] xs, float[] ys, float x)
         {
+            int n = xs.Length;
             if (x <= xs[0]) return ys[0];
-            for (int i = 1; i < xs.Length; i++)
-                if (x <= xs[i]) return Mathf.Lerp(ys[i - 1], ys[i], (x - xs[i - 1]) / (xs[i] - xs[i - 1]));
-            return ys[ys.Length - 1];
+            if (x >= xs[n - 1]) return ys[n - 1];
+            int lo = 0, hi = n - 1;               // xs[lo] < x <= xs[hi]
+            while (hi - lo > 1)
+            {
+                int mid = (lo + hi) / 2;
+                if (xs[mid] < x) lo = mid; else hi = mid;
+            }
+            return Mathf.Lerp(ys[lo], ys[hi], (x - xs[lo]) / (xs[hi] - xs[lo]));
         }
     }
 }

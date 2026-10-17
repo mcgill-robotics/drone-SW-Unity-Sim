@@ -15,6 +15,7 @@ name in Assets/StreamingAssets/vehicles or a path to a .json file.
 
 import argparse
 import csv
+import functools
 import json
 import math
 import sys
@@ -39,16 +40,22 @@ def resolve(name):
     return REPO / "Assets" / "StreamingAssets" / "vehicles" / f"{name}.json"
 
 
-def load_table(spec_dir, rotor):
-    """Rows of (throttle, thrust, torque or None) from the rotor's thrust table."""
+@functools.lru_cache(maxsize=None)
+def read_table(path):
+    """Rows of (throttle, thrust, torque or None) from a thrust table CSV, read once per path.
+    utf-8-sig drops the byte order mark Excel writes, as File.ReadAllLines does in Unity."""
     rows = []
-    with open(spec_dir / rotor["thrustTable"]) as f:
+    with open(path, encoding="utf-8-sig") as f:
         for row in csv.reader(f):
             if not row or not row[0].strip() or not (row[0].strip()[0].isdigit() or row[0].strip()[0] in ".-"):
                 continue
             vals = [float(c) for c in row]
             rows.append((vals[0], vals[1], vals[2] if len(vals) > 2 else None))
     return rows
+
+
+def load_table(spec_dir, rotor):
+    return read_table(spec_dir / rotor["thrustTable"])
 
 
 def max_thrust(spec_dir, rotor):
@@ -67,22 +74,96 @@ def moment_ratio(spec_dir, rotor):
 
 
 def throttle_for(spec_dir, rotor, thrust):
-    """Throttle PX4 must command for this thrust, matching Rotor.cs. None if out of reach."""
-    idle = rotor.get("idle", 0.0)
+    """Throttle PX4 must command for this thrust, matching RotorSpec.ThrottleFor. None if out of reach."""
     if rotor.get("thrustTable"):
+        # The table is already in PX4's throttle, so idle doesn't apply.
         rows = load_table(spec_dir, rotor)
         if thrust > max(r[1] for r in rows):
             return None
-        speed = rows[0][0]
+        throttle = rows[0][0]
         for (x0, y0, _), (x1, y1, _) in zip(rows, rows[1:]):
             if y0 <= thrust <= y1:
-                speed = x0 + (x1 - x0) * (thrust - y0) / (y1 - y0) if y1 > y0 else x0
+                throttle = x0 + (x1 - x0) * (thrust - y0) / (y1 - y0) if y1 > y0 else x0
                 break
-    else:
-        if thrust > rotor["maxThrust"]:
-            return None
-        speed = math.sqrt(thrust / rotor["maxThrust"])
+        return min(max(throttle, 0.0), 1.0)
+    if thrust > rotor["maxThrust"]:
+        return None
+    idle = rotor.get("idle", 0.0)
+    speed = math.sqrt(thrust / rotor["maxThrust"])
     return min(max((speed - idle) / (1 - idle), 0.0), 1.0)
+
+
+def is3(v):
+    return isinstance(v, list) and len(v) == 3 and all(isinstance(c, (int, float)) for c in v)
+
+
+def problems(spec, spec_dir):
+    """What stops the airframe from being generated: the checks VehicleSpec.Problems makes on the
+    fields this script reads. Unity checks the rest of the spec when it loads it."""
+    p = []
+    if not spec.get("name"):
+        p.append("name is empty")
+    mass = spec.get("massProperties", {})
+    if not mass.get("mass", 0) > 0:
+        p.append("massProperties.mass must be positive")
+    if not is3(mass.get("cg", [0, 0, 0])):
+        p.append("massProperties.cg needs 3 values")
+
+    channels = {}
+
+    def channel(ch, who):
+        if not isinstance(ch, int) or not 0 <= ch < CHANNELS:
+            p.append(f"{who}: channel must be 0 to {CHANNELS - 1}")
+        elif ch in channels:
+            p.append(f"{who}: channel {ch} is also used by {channels[ch]}")
+        else:
+            channels[ch] = who
+
+    rotors = spec.get("rotors", [])
+    if not rotors:
+        p.append("no rotors")
+    for r in rotors:
+        who = f"rotor {r.get('name')}"
+        channel(r.get("channel", 0), who)
+        if not is3(r.get("position")):
+            p.append(f"{who}: position needs 3 values")
+        axis = r.get("axis", [0, 0, -1])
+        if not is3(axis) or sum(c * c for c in axis) < 1e-6:
+            p.append(f"{who}: axis needs 3 values, not all zero")
+        if r.get("direction") not in ("ccw", "cw"):
+            p.append(f"{who}: direction must be ccw or cw")
+        if r.get("momentRatio", 0.016) < 0:
+            p.append(f"{who}: momentRatio can't be negative")
+        if not 0 <= r.get("idle", 0) <= 0.5:
+            p.append(f"{who}: idle must be 0 to 0.5")
+        if r.get("thrustTable"):
+            if r.get("idle", 0) != 0:
+                p.append(f"{who}: idle must be 0 with a thrustTable; the table's first row is the thrust armed at zero throttle")
+            try:
+                rows = load_table(spec_dir, r)
+                if len(rows) < 2:
+                    p.append(f"{who}: thrustTable {r['thrustTable']}: needs at least 2 rows of throttle,thrust")
+                elif any(b[0] <= a[0] for a, b in zip(rows, rows[1:])):
+                    p.append(f"{who}: thrustTable {r['thrustTable']}: throttle must increase row by row")
+            except (OSError, ValueError, IndexError) as e:
+                p.append(f"{who}: thrustTable {r['thrustTable']}: {e}")
+        elif not r.get("maxThrust", 0) > 0:
+            p.append(f"{who}: needs maxThrust or a thrustTable")
+
+    for s in spec.get("controlSurfaces", []):
+        who = f"control surface {s.get('name')}"
+        channel(s.get("channel", 0), who)
+        if s.get("type") not in SURFACE_TYPES:
+            p.append(f"{who}: unknown type {s.get('type')} (one of {', '.join(SURFACE_TYPES)})")
+        if not is3(s.get("torque")):
+            p.append(f"{who}: torque needs 3 values (roll, pitch, yaw)")
+
+    px4 = spec.get("px4", {})
+    if not px4.get("baseAirframe"):
+        p.append("px4.baseAirframe is empty")
+    if not px4.get("autostartId", 0) > 0:
+        p.append("px4.autostartId must be positive")
+    return p
 
 
 def unit(v):
@@ -96,7 +177,7 @@ def fmt(x):
 
 def generate(spec, spec_path):
     spec_dir = spec_path.parent
-    cg = spec["massProperties"]["cg"]
+    cg = spec["massProperties"].get("cg", [0, 0, 0])
     rotors = spec.get("rotors", [])
     surfaces = spec.get("controlSurfaces", [])
     base = spec["px4"]["baseAirframe"]
@@ -157,7 +238,10 @@ def main():
     args = ap.parse_args()
 
     path = resolve(args.vehicle)
-    spec = json.loads(path.read_text())
+    spec = json.loads(path.read_text(encoding="utf-8-sig"))
+    bad = problems(spec, path.parent)
+    if bad:
+        sys.exit(f"{path} has problems, no airframe written:\n  " + "\n  ".join(bad))
     text, hover = generate(spec, path)
     model = f"unity_{spec['name']}"
     filename = f"{spec['px4']['autostartId']}_{model}"

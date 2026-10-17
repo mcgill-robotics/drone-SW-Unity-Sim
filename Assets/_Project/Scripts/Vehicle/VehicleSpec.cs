@@ -37,7 +37,6 @@ namespace DroneSim
         [NonSerialized] public string directory = "";
 
         public const float Gravity = 9.81f;
-        public const float SeaLevelDensity = 1.225f;
 
         /// <summary>A name in StreamingAssets/vehicles, or a path to a .json file.</summary>
         public static string Resolve(string nameOrPath)
@@ -72,6 +71,13 @@ namespace DroneSim
             if (!Is3(massProperties.cg)) p.Add("massProperties.cg needs 3 values");
             var i = massProperties.inertia;
             if (i.ixx <= 0f || i.iyy <= 0f || i.izz <= 0f) p.Add("massProperties.inertia ixx, iyy and izz must be positive");
+            else
+            {
+                // Large products can make a tensor with a positive diagonal that no body has; Unity
+                // rejects it and keeps the collider's inertia.
+                var pm = PrincipalInertia();
+                if (!(pm.x > 0f)) p.Add($"massProperties.inertia has principal moments {pm.x:0.####}, {pm.y:0.####}, {pm.z:0.####}, not all positive; check the signs of ixy, ixz and iyz");
+            }
             if (!Is3(collider.center)) p.Add("collider.center needs 3 values");
             if (!Is3(collider.size) || collider.size.Any(s => s <= 0f)) p.Add("collider.size needs 3 positive values");
 
@@ -97,6 +103,7 @@ namespace DroneSim
                 if (r.idle < 0f || r.idle > 0.5f) p.Add($"{who}: idle must be 0 to 0.5");
                 if (!string.IsNullOrEmpty(r.thrustTable))
                 {
+                    if (r.idle != 0f) p.Add($"{who}: idle must be 0 with a thrustTable; the table's first row is the thrust armed at zero throttle");
                     try { r.LoadTable(directory); }
                     catch (Exception e) { p.Add($"{who}: thrustTable {r.thrustTable}: {e.Message}"); }
                 }
@@ -110,6 +117,7 @@ namespace DroneSim
                 if (s.momentCoefficient <= 0f) p.Add($"{who}: momentCoefficient must be positive");
                 if (s.timeConstant <= 0f) p.Add($"{who}: timeConstant must be positive");
             }
+            if (wings.Length > 1) p.Add("at most one wing: it models the whole airframe, tail included");
             foreach (var w in wings)
             {
                 if (!Is3(w.aeroCenter)) p.Add("wing: aeroCenter needs 3 values");
@@ -119,7 +127,20 @@ namespace DroneSim
             foreach (var c in cameras)
                 if (string.IsNullOrEmpty(c.name) || !Is3(c.position)) p.Add($"camera {c.name}: needs a name and 3 position values");
             foreach (var v in visuals)
-                if (v.shape != "box" && v.shape != "capsule" && v.shape != "cylinder") p.Add($"visual {v.name}: shape must be box, capsule or cylinder");
+            {
+                string who = $"visual {v.name}";
+                if (!Is3(v.position)) p.Add($"{who}: position needs 3 values");
+                if (v.shape == "box")
+                {
+                    if (!Is3(v.size) || v.size.Any(s => s <= 0f)) p.Add($"{who}: size needs 3 positive values");
+                }
+                else if (v.shape == "capsule" || v.shape == "cylinder")
+                {
+                    if (v.diameter <= 0f || v.length <= 0f) p.Add($"{who}: diameter and length must be positive");
+                    if (!string.IsNullOrEmpty(v.axis) && v.axis != "x" && v.axis != "y" && v.axis != "z") p.Add($"{who}: axis must be x, y or z");
+                }
+                else p.Add($"{who}: shape must be box, capsule or cylinder");
+            }
             if (string.IsNullOrEmpty(px4.baseAirframe)) p.Add("px4.baseAirframe is empty");
             if (px4.autostartId <= 0) p.Add("px4.autostartId must be positive");
             return p;
@@ -142,9 +163,10 @@ namespace DroneSim
                 float maxLift = lift.Sum(r => r.MaxThrust(directory));
                 float tw = maxLift / weight;
                 float hover = HoverThrottle();
-                sb.AppendLine($"  Lift: {lift.Count} rotors, {maxLift:0.#} N max, thrust/weight {tw:0.00}, hover throttle {hover * 100f:0}%");
+                sb.AppendLine($"  Lift: {lift.Count} rotors, {maxLift:0.#} N max, thrust/weight {tw:0.00}, hover throttle {(float.IsNaN(hover) ? "out of reach" : $"{hover * 100f:0}%")}");
                 if (tw < 1.5f) warnings.Add($"lift thrust/weight is {tw:0.00}; PX4 needs headroom to control attitude, aim for 1.8 or more");
-                if (hover > 0.8f) warnings.Add($"hover throttle is {hover * 100f:0}%, which leaves little control margin");
+                if (float.IsNaN(hover)) warnings.Add($"a lift rotor can't make its {weight / lift.Count:0.#} N share of the weight; the vehicle can't hover");
+                else if (hover > 0.8f) warnings.Add($"hover throttle is {hover * 100f:0}%, which leaves little control margin");
 
                 // Centre of gravity against the centre of the lift rotors, in the horizontal plane.
                 Vector2 centroid = Vector2.zero;
@@ -164,7 +186,7 @@ namespace DroneSim
             foreach (var w in wings)
             {
                 float clMax = w.cl0 + w.clAlpha * w.stallAlphaDeg * Mathf.Deg2Rad;
-                float stall = Mathf.Sqrt(2f * weight / (SeaLevelDensity * w.area * clMax));
+                float stall = Mathf.Sqrt(2f * weight / (Wing.SeaLevelDensity * w.area * clMax));
                 sb.AppendLine($"  Wing: {w.span:0.##} m span, {w.area:0.###} m^2, loading {m / w.area:0.#} kg/m^2, stall speed {stall:0.#} m/s at CL {clMax:0.##}");
             }
 
@@ -186,7 +208,9 @@ namespace DroneSim
             var lift = LiftRotors.ToList();
             if (lift.Count == 0) return float.NaN;
             float perRotor = massProperties.mass * Gravity / lift.Count;
-            return lift.Max(r => r.ThrottleFor(perRotor, directory));
+            var needed = lift.Select(r => r.ThrottleFor(perRotor, directory)).ToList();
+            // LINQ's Max skips NaN, so check for a rotor that falls short first.
+            return needed.Any(float.IsNaN) ? float.NaN : needed.Max();
         }
 
         IEnumerable<(string what, string source)> Sources()
@@ -259,8 +283,8 @@ namespace DroneSim
         [Tooltip("Reaction torque per newton of thrust (m), PX4's |CA_ROTORn_KM|")]
         public float momentRatio = 0.016f;
         [Tooltip("Spin-up time constant (s)")] public float timeConstant = 0.05f;
-        [Tooltip("Speed when armed at zero throttle, as a fraction of full")] public float idle;
-        [Tooltip("CSV next to the spec: throttle (0..1), thrust (N), optional torque (N m)")]
+        [Tooltip("Speed when armed at zero throttle, as a fraction of full. 0 with a thrustTable")] public float idle;
+        [Tooltip("CSV next to the spec: throttle as PX4 commands it (0..1), thrust (N), optional torque (N m)")]
         public string thrustTable;
         public string source;
 
@@ -301,19 +325,16 @@ namespace DroneSim
         /// <summary>Throttle PX4 has to command for this thrust, or NaN if it is out of reach.</summary>
         public float ThrottleFor(float thrust, string directory)
         {
-            float speed;
             if (string.IsNullOrEmpty(thrustTable))
             {
                 if (thrust > maxThrust) return float.NaN;
-                speed = Mathf.Sqrt(thrust / maxThrust);
+                float speed = Mathf.Sqrt(thrust / maxThrust);
+                return Mathf.Clamp01((speed - idle) / (1f - idle));
             }
-            else
-            {
-                LoadTable(directory);
-                if (thrust > tableThrust.Max()) return float.NaN;
-                speed = Rotor.Interpolate(tableThrust, tableThrottle, thrust);
-            }
-            return Mathf.Clamp01((speed - idle) / (1f - idle));
+            // The table is already in PX4's throttle, so idle doesn't apply.
+            LoadTable(directory);
+            if (thrust > tableThrust.Max()) return float.NaN;
+            return Mathf.Clamp01(Rotor.Interpolate(tableThrust, tableThrottle, thrust));
         }
     }
 
@@ -395,90 +416,5 @@ namespace DroneSim
         [Tooltip("Stock PX4 SITL airframe whose tuning the generated airframe starts from")]
         public string baseAirframe;
         [Tooltip("SYS_AUTOSTART id for the generated airframe")] public int autostartId;
-    }
-
-    /// <summary>Conversions between the spec's FRD body frame and Unity's body axes.</summary>
-    public static class Frames
-    {
-        /// <summary>FRD (x forward, y right, z down) to Unity (x right, y up, z forward).</summary>
-        public static Vector3 FrdToUnity(Vector3 frd) => new Vector3(frd.y, -frd.z, frd.x);
-        public static Vector3 FrdToUnity(float[] frd) => FrdToUnity(VehicleSpec.ToVector(frd));
-
-        /// <summary>
-        /// The inertia tensor in Unity's body axes, as Rigidbody wants it: principal moments and the
-        /// rotation of the principal axes. A diagonal tensor maps straight across.
-        /// </summary>
-        public static void InertiaToUnity(InertiaSpec i, out Vector3 principal, out Quaternion rotation)
-        {
-            // Unity axes in terms of FRD: x = y_frd, y = -z_frd, z = x_frd.
-            double[,] r = { { 0, 1, 0 }, { 0, 0, -1 }, { 1, 0, 0 } };
-            double[,] m = i.Matrix();
-            var u = new double[3, 3];
-            for (int a = 0; a < 3; a++)
-                for (int b = 0; b < 3; b++)
-                {
-                    double s = 0;
-                    for (int c = 0; c < 3; c++)
-                        for (int d = 0; d < 3; d++) s += r[a, c] * m[c, d] * r[b, d];
-                    u[a, b] = s;
-                }
-
-            if (u[0, 1] == 0 && u[0, 2] == 0 && u[1, 2] == 0)
-            {
-                principal = new Vector3((float)u[0, 0], (float)u[1, 1], (float)u[2, 2]);
-                rotation = Quaternion.identity;
-                return;
-            }
-
-            Eigen(u, out double[] values, out double[,] vectors);
-            // Columns are the principal axes; make them a proper rotation.
-            Vector3 c0 = new Vector3((float)vectors[0, 0], (float)vectors[1, 0], (float)vectors[2, 0]);
-            Vector3 c1 = new Vector3((float)vectors[0, 1], (float)vectors[1, 1], (float)vectors[2, 1]);
-            Vector3 c2 = Vector3.Cross(c0, c1);
-            rotation = Quaternion.LookRotation(c2, c1);
-            principal = new Vector3((float)values[0], (float)values[1], (float)values[2]);
-            // LookRotation maps x to c1 x c2 = c0 for an orthonormal right-handed set, so the
-            // moments stay paired with their axes.
-        }
-
-        /// <summary>Eigenvalues and eigenvectors (as columns) of a symmetric 3x3 matrix, by Jacobi rotations.</summary>
-        public static void Eigen(double[,] matrix, out double[] values, out double[,] vectors)
-        {
-            var a = (double[,])matrix.Clone();
-            var v = new double[,] { { 1, 0, 0 }, { 0, 1, 0 }, { 0, 0, 1 } };
-            for (int sweep = 0; sweep < 50; sweep++)
-            {
-                double off = Math.Abs(a[0, 1]) + Math.Abs(a[0, 2]) + Math.Abs(a[1, 2]);
-                if (off < 1e-15) break;
-                for (int p = 0; p < 2; p++)
-                    for (int q = p + 1; q < 3; q++)
-                    {
-                        if (Math.Abs(a[p, q]) < 1e-18) continue;
-                        double theta = (a[q, q] - a[p, p]) / (2 * a[p, q]);
-                        double t = Math.Sign(theta == 0 ? 1 : theta) / (Math.Abs(theta) + Math.Sqrt(theta * theta + 1));
-                        double c = 1 / Math.Sqrt(t * t + 1), s = t * c;
-                        for (int k = 0; k < 3; k++)
-                        {
-                            double akp = a[k, p], akq = a[k, q];
-                            a[k, p] = c * akp - s * akq;
-                            a[k, q] = s * akp + c * akq;
-                        }
-                        for (int k = 0; k < 3; k++)
-                        {
-                            double apk = a[p, k], aqk = a[q, k];
-                            a[p, k] = c * apk - s * aqk;
-                            a[q, k] = s * apk + c * aqk;
-                        }
-                        for (int k = 0; k < 3; k++)
-                        {
-                            double vkp = v[k, p], vkq = v[k, q];
-                            v[k, p] = c * vkp - s * vkq;
-                            v[k, q] = s * vkp + c * vkq;
-                        }
-                    }
-            }
-            values = new[] { a[0, 0], a[1, 1], a[2, 2] };
-            vectors = v;
-        }
     }
 }

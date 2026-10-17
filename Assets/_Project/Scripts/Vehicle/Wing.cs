@@ -9,8 +9,11 @@ namespace DroneSim
     /// </summary>
     public class Wing : MonoBehaviour
     {
+        /// <summary>ISA sea level, kg/m^3.</summary>
+        public const float SeaLevelDensity = 1.225f;
+
         [Header("Air")]
-        public float airDensity = 1.225f;
+        public float airDensity = SeaLevelDensity;
 
         [Header("Geometry")]
         [Tooltip("Wing area (m^2)")] public float area = 0.45f;
