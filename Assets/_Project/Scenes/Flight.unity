@@ -1175,10 +1175,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: DroneSim::DroneSim.CameraPublisher
   _publishRate: 10
-  topic: /sim/forward_cam/image_raw
-  frameId: forward_camera_optical_frame
-  width: 1280
-  height: 720
 --- !u!20 &1010424385
 Camera:
   m_ObjectHideFlags: 0
@@ -1506,8 +1502,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: DroneSim::DroneSim.SimSettings
   vehicle: {fileID: 1317849043}
   publishROS: 1
-  useJPEGCompression: 1
-  jpegQuality: 75
 --- !u!114 &1030792081
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1522,15 +1516,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: DroneSim::DroneSim.ROSSettings
   SimulationResetTopic: /simulation/reset
   ClockTopic: /clock
-  ForwardCameraTopic: /sim/forward_cam/image_raw
-  DownCameraTopic: /sim/down_cam/image_raw
   GroundTruthPoseTopic: /sim/ground_truth/pose
   GroundTruthTwistTopic: /sim/ground_truth/twist
   GroundTruthGpsTopic: /sim/ground_truth/gps
   WorldFrameId: map
   BaseLinkFrameId: base_link
-  ForwardCamFrameId: forward_camera_optical_frame
-  DownCamFrameId: down_camera_optical_frame
 --- !u!4 &1030792082
 Transform:
   m_ObjectHideFlags: 0
@@ -1682,10 +1672,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: DroneSim::DroneSim.CameraPublisher
   _publishRate: 10
-  topic: /sim/down_cam/image_raw
-  frameId: down_camera_optical_frame
-  width: 1280
-  height: 720
 --- !u!20 &1094931744
 Camera:
   m_ObjectHideFlags: 0

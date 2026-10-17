@@ -9,21 +9,18 @@ namespace DroneSim
 {
     /// <summary>
     /// Publishes a Unity camera as sensor_msgs/Image (or CompressedImage) plus CameraInfo.
+    /// Topic, frame id, resolution, rate, field of view and format come from the sim config entry
+    /// with this GameObject's name (SimConfig); without one the camera stays off.
     /// The camera is disabled and rendered only when a publish is due and the ROS endpoint is
     /// connected, so it costs nothing otherwise. Async GPU readback so the render thread is never
-    /// stalled. Configured from the inspector.
+    /// stalled.
     /// </summary>
     [RequireComponent(typeof(Camera))]
     public class CameraPublisher : ROSPublisher
     {
-        [Header("Camera")]
-        public string topic = "/sim/camera/image_raw";
-        public string frameId = "camera_optical_frame";
-        public int width = 1280;
-        public int height = 720;
+        public override string Topic => config?.topic;
 
-        public override string Topic => topic;
-
+        private CameraConfig config;
         private Camera cam;
         private RenderTexture rt;
         private Texture2D encodeTex;
@@ -38,8 +35,19 @@ namespace DroneSim
         {
             cam = GetComponent<Camera>();
             cam.enabled = false;
+
+            config = SimConfig.Current.FindCamera(name);
+            if (config == null) { Debug.LogWarning($"[CameraPublisher] no sim config entry for {name}, not publishing"); enabled = false; return; }
+            string problem = config.Problem();
+            if (problem != null) { Debug.LogError($"[CameraPublisher] sim config entry for {name}: {problem}, not publishing"); enabled = false; return; }
+            cam.fieldOfView = config.verticalFov;
+            PublishRate = config.rate;
+
             base.Start();
             useBaseRateLimiting = false;
+
+            int width = config.width, height = config.height;
+            string frameId = config.frameId;
 
             // Metal's default B8G8R8A8 target cannot be read back; pick an RGBA8 format that can.
             var fmt = GraphicsFormat.R8G8B8A8_SRGB;
@@ -68,9 +76,10 @@ namespace DroneSim
 
         protected override void RegisterPublisher()
         {
-            ros.RegisterPublisher<ImageMsg>(topic);
+            string topic = config.topic;
             compressedTopic = topic + "/compressed";
-            ros.RegisterPublisher<CompressedImageMsg>(compressedTopic);
+            if (config.Jpeg) ros.RegisterPublisher<CompressedImageMsg>(compressedTopic);
+            else ros.RegisterPublisher<ImageMsg>(topic);
             int i = topic.LastIndexOf('/');
             infoTopic = (i >= 0 ? topic.Substring(0, i + 1) : "") + "camera_info";
             ros.RegisterPublisher<CameraInfoMsg>(infoTopic);
@@ -93,17 +102,16 @@ namespace DroneSim
         private void OnReadback(AsyncGPUReadbackRequest req, TimeMsg stamp)
         {
             reading = false;
-            if (req.hasError) { Debug.LogWarning($"[CameraPublisher] readback failed on {topic}"); return; }
+            if (req.hasError) { Debug.LogWarning($"[CameraPublisher] readback failed on {config.topic}"); return; }
             var data = req.GetData<byte>();
 
-            bool jpeg = SimSettings.Instance != null && SimSettings.Instance.useJPEGCompression;
-            if (jpeg)
+            if (config.Jpeg)
             {
                 if (rawBuffer == null || rawBuffer.Length != data.Length) rawBuffer = new byte[data.Length];
                 data.CopyTo(rawBuffer);
                 encodeTex.LoadRawTextureData(rawBuffer);
                 encodeTex.Apply();
-                compressedMsg.data = encodeTex.EncodeToJPG(SimSettings.Instance.jpegQuality);
+                compressedMsg.data = encodeTex.EncodeToJPG(config.jpegQuality);
                 compressedMsg.header.stamp = stamp;
                 ros.Publish(compressedTopic, compressedMsg);
             }
@@ -112,7 +120,7 @@ namespace DroneSim
                 if (imageMsg.data == null || imageMsg.data.Length != data.Length) imageMsg.data = new byte[data.Length];
                 data.CopyTo(imageMsg.data);
                 imageMsg.header.stamp = stamp;
-                ros.Publish(topic, imageMsg);
+                ros.Publish(config.topic, imageMsg);
             }
             infoMsg.header.stamp = stamp;
             ros.Publish(infoTopic, infoMsg);

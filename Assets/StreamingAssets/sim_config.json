@@ -1,0 +1,26 @@
+{
+  "cameras": [
+    {
+      "name": "ForwardCamera",
+      "topic": "/sim/forward_cam/image_raw",
+      "frameId": "forward_camera_optical_frame",
+      "width": 1280,
+      "height": 720,
+      "rate": 10,
+      "verticalFov": 70,
+      "format": "jpeg",
+      "jpegQuality": 75
+    },
+    {
+      "name": "DownCamera",
+      "topic": "/sim/down_cam/image_raw",
+      "frameId": "down_camera_optical_frame",
+      "width": 1280,
+      "height": 720,
+      "rate": 10,
+      "verticalFov": 60,
+      "format": "jpeg",
+      "jpegQuality": 75
+    }
+  ]
+}

@@ -15,11 +15,15 @@ namespace DroneSim
     ///   --ros-ip IP       ROS TCP endpoint address (default 127.0.0.1)
     ///   --ros-port PORT   ROS TCP endpoint port (default 10000)
     ///   --no-ros          Don't connect or publish to ROS
+    ///   --config PATH     Sim config file (cameras) instead of StreamingAssets/sim_config.json
     ///
     /// The home location comes from PX4_HOME_LAT, PX4_HOME_LON and PX4_HOME_ALT (see GeoOrigin).
     /// </summary>
     public static class CommandLineOptions
     {
+        /// <summary>Path given with --config, or null. Read by SimConfig.</summary>
+        public static string ConfigPath => Value("--config");
+
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         private static void Init()
         {

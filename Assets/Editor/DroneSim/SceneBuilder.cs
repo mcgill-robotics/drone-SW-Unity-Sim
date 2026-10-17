@@ -246,8 +246,8 @@ namespace DroneSim.Editor
             gt.transform.SetParent(root.transform, false);
             gt.AddComponent<GroundTruthPublisher>().PublishRate = 50f;
 
-            AddCamera(root, "DownCamera", downCamera, Quaternion.Euler(90, 0, 0), "/sim/down_cam/image_raw", "down_camera_optical_frame", 60f);
-            AddCamera(root, "ForwardCamera", forwardCamera, Quaternion.Euler(forwardPitchDeg, 0, 0), "/sim/forward_cam/image_raw", "forward_camera_optical_frame", 70f);
+            AddCamera(root, "DownCamera", downCamera, Quaternion.Euler(90, 0, 0));
+            AddCamera(root, "ForwardCamera", forwardCamera, Quaternion.Euler(forwardPitchDeg, 0, 0));
         }
 
         static void Mesh(GameObject parent, string name, PrimitiveType type, Vector3 pos, Quaternion rot, Vector3 scale)
@@ -289,22 +289,20 @@ namespace DroneSim.Editor
             s.invert = invert;
         }
 
-        static void AddCamera(GameObject parent, string name, Vector3 pos, Quaternion rot, string topic, string frame, float fov)
+        /// <summary>
+        /// Mount only. Topic, resolution, rate and field of view come from the camera's entry in
+        /// StreamingAssets/sim_config.json, matched by name.
+        /// </summary>
+        static void AddCamera(GameObject parent, string name, Vector3 pos, Quaternion rot)
         {
             var go = new GameObject(name);
             go.transform.SetParent(parent.transform, false);
             go.transform.localPosition = pos;
             go.transform.localRotation = rot;
             var cam = go.AddComponent<Camera>();
-            cam.fieldOfView = fov;
             cam.nearClipPlane = 0.1f;
             cam.farClipPlane = 5000f;
-            var pub = go.AddComponent<CameraPublisher>();
-            pub.topic = topic;
-            pub.frameId = frame;
-            pub.width = 1280;
-            pub.height = 720;
-            pub.PublishRate = 10f;
+            go.AddComponent<CameraPublisher>();
         }
     }
 }

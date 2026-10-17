@@ -41,6 +41,7 @@ For the quadplane, play `Flight.unity` and start PX4 with
 |---|---|
 | `Assets/_Project/Scripts/` | The sim: PX4 bridge, vehicle physics, sensors, ROS publishers |
 | `Assets/Editor/DroneSim/SceneBuilder.cs` | Generates both scenes and holds every vehicle number |
+| `Assets/StreamingAssets/sim_config.json` | Camera topics, frames, resolution, rate and format, read at startup (editable in builds) |
 | `Assets/Tests/EditMode/` | Unit tests |
 | `tools/px4_flight_test.py` | Scripted hover or VTOL flight through PX4, with pass/fail exit codes |
 | `missions/` | QGroundControl mission for the quadplane |

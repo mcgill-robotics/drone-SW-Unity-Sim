@@ -19,8 +19,6 @@ namespace DroneSim
         [Header("ROS")]
         [Tooltip("Master switch for all ROS publishers")]
         public bool publishROS = true;
-        public bool useJPEGCompression = true;
-        [Range(1, 100)] public int jpegQuality = 75;
 
         public static bool PublishROS => Instance != null && Instance.publishROS;
         public static Rigidbody Vehicle => Instance != null ? Instance.vehicle : null;
