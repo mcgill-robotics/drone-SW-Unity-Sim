@@ -241,7 +241,6 @@ namespace DroneSim.Editor
             var imuGo = new GameObject("IMU");
             imuGo.transform.SetParent(root.transform, false);
             imuGo.AddComponent<ImuModel>();
-            imuGo.AddComponent<IMUPublisher>();
 
             var gt = new GameObject("GroundTruth");
             gt.transform.SetParent(root.transform, false);

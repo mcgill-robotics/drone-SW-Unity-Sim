@@ -19,7 +19,6 @@ namespace DroneSim
 
         [Header("Sensors (Sim -> ROS)")]
         public string ClockTopic = "/clock";
-        public string IMUTopic = "/sim/imu/data";
         public string ForwardCameraTopic = "/sim/forward_cam/image_raw";
         public string DownCameraTopic = "/sim/down_cam/image_raw";
 
@@ -31,7 +30,6 @@ namespace DroneSim
         [Header("Frames")]
         public string WorldFrameId = "map";
         public string BaseLinkFrameId = "base_link";
-        public string ImuFrameId = "imu_link";
         public string ForwardCamFrameId = "forward_camera_optical_frame";
         public string DownCamFrameId = "down_camera_optical_frame";
 

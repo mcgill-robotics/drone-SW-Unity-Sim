@@ -4,8 +4,7 @@ namespace DroneSim
 {
     /// <summary>
     /// Simulated IMU: proper acceleration and angular rate at the sensor location, with white noise
-    /// and Gauss-Markov bias drift. Output is in Unity body axes; consumers convert to FLU or FRD.
-    /// Shared by the ROS IMU publisher and the PX4 HIL bridge so both see the same instrument.
+    /// and Gauss-Markov bias drift. Output is in Unity body axes; the PX4 HIL bridge converts to FRD.
     /// </summary>
     public class ImuModel : MonoBehaviour, IResettable
     {

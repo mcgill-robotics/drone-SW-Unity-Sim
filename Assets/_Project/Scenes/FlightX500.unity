@@ -2116,7 +2116,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: DroneSim::DroneSim.ROSSettings
   SimulationResetTopic: /simulation/reset
   ClockTopic: /clock
-  IMUTopic: /sim/imu/data
   ForwardCameraTopic: /sim/forward_cam/image_raw
   DownCameraTopic: /sim/down_cam/image_raw
   GroundTruthPoseTopic: /sim/ground_truth/pose
@@ -2124,7 +2123,6 @@ MonoBehaviour:
   GroundTruthGpsTopic: /sim/ground_truth/gps
   WorldFrameId: map
   BaseLinkFrameId: base_link
-  ImuFrameId: imu_link
   ForwardCamFrameId: forward_camera_optical_frame
   DownCamFrameId: down_camera_optical_frame
 --- !u!4 &1204624692
@@ -2346,7 +2344,6 @@ GameObject:
   m_Component:
   - component: {fileID: 1837813344}
   - component: {fileID: 1837813346}
-  - component: {fileID: 1837813345}
   m_Layer: 0
   m_Name: IMU
   m_TagString: Untagged
@@ -2369,20 +2366,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 1317849043}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &1837813345
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1837813343}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ecb61d44084404b7a8623e5b8be57668, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: DroneSim::DroneSim.IMUPublisher
-  _publishRate: 10
-  publishOrientation: 1
 --- !u!114 &1837813346
 MonoBehaviour:
   m_ObjectHideFlags: 0
