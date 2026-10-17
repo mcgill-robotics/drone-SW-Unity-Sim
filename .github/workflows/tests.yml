@@ -21,7 +21,7 @@ jobs:
         with:
           path: Library
           key: Library-Test-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
-          restore-keys: Library-
+          restore-keys: Library-Test-
 
       - uses: game-ci/unity-test-runner@v4
         env:
