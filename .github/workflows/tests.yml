@@ -32,6 +32,15 @@ jobs:
           key: Library-Test-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: Library-Test-
 
+      # Unity is sometimes SIGKILLed (exit 137) a few seconds into startup, on any branch, and its
+      # log can't say by whom. This has the kernel record every SIGKILL with its sender; the kill
+      # report below prints them with any OOM kills if the tests fail.
+      - name: Record SIGKILLs
+        run: |
+          events=/sys/kernel/tracing/events/signal/signal_generate
+          { echo 'sig == 9' | sudo tee $events/filter && echo 1 | sudo tee $events/enable; } > /dev/null \
+            || echo "::warning::kernel signal tracing unavailable, the kill report will be incomplete"
+
       - uses: game-ci/unity-test-runner@v4
         id: tests
         env:
@@ -40,7 +49,8 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
         with:
-          # Edit mode: unit tests. Play mode: the flight scene with each vehicle, no PX4.
+          # Edit mode: unit tests. Play mode: the flight scene with each vehicle, the PX4 bridge
+          # against a fake PX4.
           testMode: all
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           checkName: Test results
@@ -49,13 +59,24 @@ jobs:
           # tests or packages; dontClear keeps every test run's results for the merged report.
           coverageOptions: 'generateAdditionalMetrics;generateHtmlReport;dontClear;assemblyFilters:+DroneSim'
 
+      - name: Kill report
+        if: failure()
+        run: |
+          echo "SIGKILLs: the sending task first, then the target. code=128 means the kernel sent it (OOM killer)."
+          sudo grep signal_generate /sys/kernel/tracing/trace || echo "none recorded"
+          echo
+          echo "Runner memory (game-ci caps the container at 95% of it):"
+          free -m
+          echo
+          sudo dmesg -T | grep -iE -A30 'out of memory|oom-kill|killed process' || echo "no OOM kill in the kernel log"
+
       - name: Coverage summary
         if: ${{ !cancelled() }}
-        run: python3 tools/coverage_summary.py "${{ steps.tests.outputs.coveragePath || 'CodeCoverage' }}" >> "$GITHUB_STEP_SUMMARY"
+        run: python3 tools/coverage_summary.py CodeCoverage >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
           name: coverage
-          path: ${{ steps.tests.outputs.coveragePath || 'CodeCoverage' }}
+          path: CodeCoverage
           if-no-files-found: warn
