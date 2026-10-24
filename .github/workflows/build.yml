@@ -28,6 +28,11 @@ jobs:
           key: Library-${{ matrix.targetPlatform }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: Library-${{ matrix.targetPlatform }}-
 
+      # Unity kills the stale PID in Library/burst.pid at startup, which can be itself on a new
+      # runner (exit 137). See tests.yml.
+      - name: Drop the cached Library's pid files
+        run: rm -f Library/burst.pid Library/ilpp.pid
+
       - uses: game-ci/unity-builder@v6
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -43,6 +48,11 @@ jobs:
         with:
           name: drone-sim-${{ matrix.targetPlatform }}
           path: build/${{ matrix.targetPlatform }}
+
+      # Keeps this run's pids out of the Library cache saved after the job.
+      - name: Drop pid files before the cache is saved
+        if: ${{ !cancelled() }}
+        run: rm -f Library/burst.pid Library/ilpp.pid
 
   # Runs the Linux player headless against tools/sim_smoke_test.py, which plays PX4's side of the
   # HIL link, once per shipped vehicle. Catches a build that starts but can't fly: missing

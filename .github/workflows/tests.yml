@@ -32,13 +32,22 @@ jobs:
           key: Library-Test-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: Library-Test-
 
-      # Unity is sometimes SIGKILLed (exit 137) a few seconds into startup, on any branch, and its
-      # log can't say by whom. This has the kernel record every SIGKILL with its sender; the kill
-      # report below prints them with any OOM kills if the tests fail.
+      # Unity 6.6 SIGKILLs the PID in Library/burst.pid at startup (a leftover Burst compiler, it
+      # assumes) without checking what that process is. A restored Library holds the PID from the
+      # runner that saved it, and when that PID is one of Unity's own threads here, Unity kills
+      # itself a few seconds in (exit 137). ilpp.pid is the IL post-processor's: Unity checks that
+      # one's process name, but it's just as stale.
+      - name: Drop the cached Library's pid files
+        run: rm -f Library/burst.pid Library/ilpp.pid
+
+      # The kernel records every SIGKILL with the sending thread, its process and the pid it passed
+      # to kill(); the kill report below prints them with any OOM kills if the tests fail.
       - name: Record SIGKILLs
         run: |
-          events=/sys/kernel/tracing/events/signal/signal_generate
-          { echo 'sig == 9' | sudo tee $events/filter && echo 1 | sudo tee $events/enable; } > /dev/null \
+          t=/sys/kernel/tracing
+          { echo 1 | sudo tee $t/options/record-tgid \
+            && echo 'sig == 9' | sudo tee $t/events/signal/signal_generate/filter $t/events/syscalls/sys_enter_kill/filter \
+            && echo 1 | sudo tee $t/events/signal/signal_generate/enable $t/events/syscalls/sys_enter_kill/enable; } > /dev/null \
             || echo "::warning::kernel signal tracing unavailable, the kill report will be incomplete"
 
       - uses: game-ci/unity-test-runner@v4
@@ -62,8 +71,9 @@ jobs:
       - name: Kill report
         if: failure()
         run: |
-          echo "SIGKILLs: the sending task first, then the target. code=128 means the kernel sent it (OOM killer)."
-          sudo grep signal_generate /sys/kernel/tracing/trace || echo "none recorded"
+          echo "SIGKILLs: sending thread-tid (process), then sys_kill's pid in hex (as the sender sees it) and the target."
+          echo "code=128 means the kernel sent it (OOM killer, or the container's init exiting)."
+          sudo grep -E 'signal_generate|sys_kill' /sys/kernel/tracing/trace || echo "none recorded"
           echo
           echo "Runner memory (game-ci caps the container at 95% of it):"
           free -m
@@ -80,3 +90,8 @@ jobs:
           name: coverage
           path: CodeCoverage
           if-no-files-found: warn
+
+      # Keeps this run's pids out of the Library cache saved after the job.
+      - name: Drop pid files before the cache is saved
+        if: ${{ !cancelled() }}
+        run: rm -f Library/burst.pid Library/ilpp.pid
