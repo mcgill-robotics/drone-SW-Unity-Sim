@@ -33,8 +33,13 @@ namespace DroneSim.Tests
             Assert.Less(rb.linearVelocity.magnitude, 0.05f, "still moving");
             Assert.Less(rb.angularVelocity.magnitude, 0.05f, "still rotating");
             Assert.Less(Vector3.Angle(rb.transform.up, Vector3.up), 5f, "not upright");
-            float bottom = rb.GetComponent<BoxCollider>().bounds.min.y;
-            Assert.AreEqual(0f, bottom, 0.02f, "the collider's bottom should rest on the ground");
+            // The vehicle spawns over the 4 cm runway strip, so the ground is whatever is under it,
+            // not y = 0.
+            var box = rb.GetComponent<BoxCollider>();
+            var below = Physics.RaycastAll(box.bounds.center, Vector3.down, 10f)
+                .Where(h => h.rigidbody != rb).OrderBy(h => h.distance).ToArray();
+            Assert.IsNotEmpty(below, "nothing under the vehicle");
+            Assert.AreEqual(below[0].point.y, box.bounds.min.y, 0.02f, "the collider's bottom should rest on the ground");
 
             // Proper acceleration at rest points up: +y in Unity body axes, about 9.81 plus noise.
             var imu = rb.GetComponentInChildren<ImuModel>();
