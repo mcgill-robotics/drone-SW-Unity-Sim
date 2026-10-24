@@ -1,0 +1,33 @@
+name: Tools
+
+# Unit tests for the Python scripts in tools/. No Unity and no license needed. They read the
+# shipped vehicle specs and a few constants from the vehicle scripts, so changes there run them too.
+on:
+  pull_request:
+    paths:
+      - 'tools/**'
+      - 'Assets/StreamingAssets/vehicles/**'
+      - 'Assets/_Project/Scripts/Vehicle/**'
+      - '.github/workflows/tools.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'tools/**'
+      - 'Assets/StreamingAssets/vehicles/**'
+      - 'Assets/_Project/Scripts/Vehicle/**'
+      - '.github/workflows/tools.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: tools-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Tool tests
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Run tests
+        run: python3 -m unittest discover -s tools/tests -v

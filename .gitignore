@@ -111,3 +111,9 @@ InitTestScene*.unity*
 # macOS
 .DS_Store
 results.xml
+
+# Python
+__pycache__/
+
+# Unity Code Coverage results
+/[Cc]ode[Cc]overage/
