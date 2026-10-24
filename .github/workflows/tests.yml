@@ -38,8 +38,21 @@ jobs:
       - name: Record SIGKILLs
         run: |
           events=/sys/kernel/tracing/events/signal/signal_generate
-          { echo 'sig == 9' | sudo tee $events/filter && echo 1 | sudo tee $events/enable; } > /dev/null \
+          { echo 'sig == 9 || sig == 11 || sig == 6 || sig == 7 || sig == 4 || sig == 8 || sig == 5' | sudo tee $events/filter && echo 1 | sudo tee $events/enable; } > /dev/null \
             || echo "::warning::kernel signal tracing unavailable, the kill report will be incomplete"
+
+      - name: Library PID files (restored)
+        continue-on-error: true
+        run: |
+          set +e +o pipefail
+          echo "Small files holding only a number:"
+          find Library -maxdepth 4 -type f -size -64c -print0 | while IFS= read -r -d '' f; do
+            c=$(tr -d '\0' < "$f"); [[ "$c" =~ ^[[:space:]]*-?[0-9]+[[:space:]]*$ ]] && echo "  $f: $c ($(stat -c '%y' "$f"))"
+          done
+          echo "Files mentioning a pid:"
+          grep -rlisE '"?(process_?id|pid)"?[[:space:]]*[:=]' Library --include='*.json' --include='*.txt' --include='*.pid' 2>/dev/null | head -20
+          for f in Library/EditorInstance.json Library/ilpp.pid Library/MSBuild/buildhost.pid; do echo "--- $f"; cat "$f" 2>/dev/null || echo "(none)"; echo; done
+          ls -la Library Library/MSBuild 2>/dev/null
 
       - uses: game-ci/unity-test-runner@v4
         id: tests
@@ -59,8 +72,22 @@ jobs:
           # tests or packages; dontClear keeps every test run's results for the merged report.
           coverageOptions: 'generateAdditionalMetrics;generateHtmlReport;dontClear;assemblyFilters:+DroneSim'
 
+      - name: Library PID files (after tests)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          set +e +o pipefail
+          echo "Small files holding only a number:"
+          find Library -maxdepth 4 -type f -size -64c -print0 | while IFS= read -r -d '' f; do
+            c=$(tr -d '\0' < "$f"); [[ "$c" =~ ^[[:space:]]*-?[0-9]+[[:space:]]*$ ]] && echo "  $f: $c ($(stat -c '%y' "$f"))"
+          done
+          echo "Files mentioning a pid:"
+          grep -rlisE '"?(process_?id|pid)"?[[:space:]]*[:=]' Library --include='*.json' --include='*.txt' --include='*.pid' 2>/dev/null | head -20
+          for f in Library/EditorInstance.json Library/ilpp.pid Library/MSBuild/buildhost.pid; do echo "--- $f"; cat "$f" 2>/dev/null || echo "(none)"; echo; done
+          ls -la Library Library/MSBuild 2>/dev/null
+
       - name: Kill report
-        if: failure()
+        if: ${{ !cancelled() }}
         run: |
           echo "SIGKILLs: the sending task first, then the target. code=128 means the kernel sent it (OOM killer)."
           sudo grep signal_generate /sys/kernel/tracing/trace || echo "none recorded"
