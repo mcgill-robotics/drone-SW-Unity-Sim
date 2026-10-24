@@ -23,23 +23,47 @@ jobs:
       group: unity-license
       cancel-in-progress: false
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        plant: [burst, ilpp]
     steps:
       - uses: actions/checkout@v7
 
-      - uses: actions/cache@v6
+      - uses: actions/cache/restore@v6
         with:
           path: Library
           key: Library-Test-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: Library-Test-
 
-      # Unity is sometimes SIGKILLed (exit 137) a few seconds into startup, on any branch, and its
-      # log can't say by whom. This has the kernel record every SIGKILL with its sender; the kill
-      # report below prints them with any OOM kills if the tests fail.
+      # Experiment: point one Library pid file at PID 128, which is the Unity editor's main thread
+      # or one of its first threads in every first launch seen so far (Unity gets 124 to 126).
+      - name: Plant a stale pid in Library/${{ matrix.plant }}.pid
+        run: |
+          rm -f Library/burst.pid Library/ilpp.pid
+          printf 128 > Library/${{ matrix.plant }}.pid
+          ls -la Library/*.pid
+
+      - name: Burst package source
+        if: matrix.plant == 'burst'
+        uses: actions/upload-artifact@v7
+        with:
+          name: burst-package
+          path: |
+            Library/PackageCache/com.unity.burst*/**/*.cs
+            Library/PackageCache/com.unity.burst*/package.json
+
       - name: Record SIGKILLs
         run: |
-          events=/sys/kernel/tracing/events/signal/signal_generate
-          { echo 'sig == 9 || sig == 11 || sig == 6 || sig == 7 || sig == 4 || sig == 8 || sig == 5' | sudo tee $events/filter && echo 1 | sudo tee $events/enable; } > /dev/null \
-            || echo "::warning::kernel signal tracing unavailable, the kill report will be incomplete"
+          t=/sys/kernel/tracing
+          echo 1 | sudo tee $t/options/record-tgid > /dev/null
+          echo 'sig == 9 || sig == 11 || sig == 6 || sig == 7 || sig == 4 || sig == 8 || sig == 5' | sudo tee $t/events/signal/signal_generate/filter > /dev/null
+          echo 1 | sudo tee $t/events/signal/signal_generate/enable > /dev/null
+          for s in kill tgkill tkill; do
+            echo 'sig == 9' | sudo tee $t/events/syscalls/sys_enter_$s/filter > /dev/null
+            echo 1 | sudo tee $t/events/syscalls/sys_enter_$s/enable > /dev/null
+          done
+          echo 1 | sudo tee $t/events/task/task_rename/enable > /dev/null
 
       - name: Library PID files (restored)
         continue-on-error: true
@@ -90,7 +114,9 @@ jobs:
         if: ${{ !cancelled() }}
         run: |
           echo "SIGKILLs: the sending task first, then the target. code=128 means the kernel sent it (OOM killer)."
-          sudo grep signal_generate /sys/kernel/tracing/trace || echo "none recorded"
+          sudo grep -E 'signal_generate|sys_kill|sys_tgkill|sys_tkill' /sys/kernel/tracing/trace || echo "none recorded"
+          echo "Thread renames:"
+          sudo grep task_rename /sys/kernel/tracing/trace | head -300
           echo
           echo "Runner memory (game-ci caps the container at 95% of it):"
           free -m
@@ -104,6 +130,6 @@ jobs:
       - uses: actions/upload-artifact@v7
         if: ${{ !cancelled() }}
         with:
-          name: coverage
+          name: coverage-${{ matrix.plant }}
           path: CodeCoverage
           if-no-files-found: warn
