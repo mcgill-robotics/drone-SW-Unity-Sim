@@ -28,6 +28,11 @@ jobs:
           key: Library-${{ matrix.targetPlatform }}-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: Library-${{ matrix.targetPlatform }}-
 
+      # Unity kills the stale PID in Library/burst.pid at startup, which can be itself on a new
+      # runner (exit 137). See tests.yml.
+      - name: Drop the cached Library's pid files
+        run: rm -f Library/burst.pid Library/ilpp.pid
+
       - uses: game-ci/unity-builder@v6
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
@@ -44,9 +49,57 @@ jobs:
           name: drone-sim-${{ matrix.targetPlatform }}
           path: build/${{ matrix.targetPlatform }}
 
+      # Keeps this run's pids out of the Library cache saved after the job.
+      - name: Drop pid files before the cache is saved
+        if: ${{ !cancelled() }}
+        run: rm -f Library/burst.pid Library/ilpp.pid
+
+  # Runs the Linux player headless against tools/sim_smoke_test.py, which plays PX4's side of the
+  # HIL link, once per shipped vehicle. Catches a build that starts but can't fly: missing
+  # StreamingAssets, a broken bridge, physics that differs from the editor. No Unity license needed.
+  smoke:
+    name: Smoke test Linux player
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: drone-sim-StandaloneLinux64
+          path: player
+
+      - name: Fly each vehicle against a fake PX4
+        run: |
+          exe=player/drone-sim.x86_64
+          [ -f "$exe" ] || exe=player/drone-sim
+          chmod +x "$exe"   # artifacts don't keep the executable bit
+          status=0
+          for spec in Assets/StreamingAssets/vehicles/*.json; do
+            vehicle=$(basename "$spec" .json)
+            echo "::group::$vehicle"
+            "$exe" -batchmode -nographics -logFile "player-$vehicle.log" --no-ros --vehicle "$vehicle" &
+            pid=$!
+            python3 tools/sim_smoke_test.py "$vehicle" || status=1
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            if grep -q "Exception" "player-$vehicle.log"; then
+              echo "::warning::exceptions in the $vehicle player log, see the smoke-test-logs artifact"
+            fi
+            echo "::endgroup::"
+          done
+          exit $status
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: smoke-test-logs
+          path: player-*.log
+
   release:
     name: Draft release
-    needs: build
+    needs: [build, smoke]
     if: startsWith(github.ref, 'refs/tags/v')
     runs-on: ubuntu-24.04
     permissions:

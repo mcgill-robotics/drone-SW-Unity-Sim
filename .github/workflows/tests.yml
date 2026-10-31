@@ -16,6 +16,7 @@ concurrency:
 
 jobs:
   editmode:
+    # Runs play mode too. The name stays: it's the required status check in main's ruleset.
     name: Edit-mode tests
     # One Unity job at a time across workflows, so jobs don't compete for the license seat.
     concurrency:
@@ -31,13 +32,66 @@ jobs:
           key: Library-Test-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
           restore-keys: Library-Test-
 
+      # Unity 6.6 SIGKILLs the PID in Library/burst.pid at startup (a leftover Burst compiler, it
+      # assumes) without checking what that process is. A restored Library holds the PID from the
+      # runner that saved it, and when that PID is one of Unity's own threads here, Unity kills
+      # itself a few seconds in (exit 137). ilpp.pid is the IL post-processor's: Unity checks that
+      # one's process name, but it's just as stale.
+      - name: Drop the cached Library's pid files
+        run: rm -f Library/burst.pid Library/ilpp.pid
+
+      # The kernel records every SIGKILL with the sending thread, its process and the pid it passed
+      # to kill(); the kill report below prints them with any OOM kills if the tests fail.
+      - name: Record SIGKILLs
+        run: |
+          t=/sys/kernel/tracing
+          { echo 1 | sudo tee $t/options/record-tgid \
+            && echo 'sig == 9' | sudo tee $t/events/signal/signal_generate/filter $t/events/syscalls/sys_enter_kill/filter \
+            && echo 1 | sudo tee $t/events/signal/signal_generate/enable $t/events/syscalls/sys_enter_kill/enable; } > /dev/null \
+            || echo "::warning::kernel signal tracing unavailable, the kill report will be incomplete"
+
       - uses: game-ci/unity-test-runner@v4
+        id: tests
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
         with:
-          testMode: editmode
+          # Edit mode: unit tests. Play mode: the flight scene with each vehicle, the PX4 bridge
+          # against a fake PX4.
+          testMode: all
           githubToken: ${{ secrets.GITHUB_TOKEN }}
-          checkName: Edit-mode test results
+          checkName: Test results
+          # Coverage is on by default (coverageEnabled) and uses the Code Coverage package from the
+          # project's Engineering feature set. Only the sim's own assembly is measured, not the
+          # tests or packages; dontClear keeps every test run's results for the merged report.
+          coverageOptions: 'generateAdditionalMetrics;generateHtmlReport;dontClear;assemblyFilters:+DroneSim'
+
+      - name: Kill report
+        if: failure()
+        run: |
+          echo "SIGKILLs: sending thread-tid (process), then sys_kill's pid in hex (as the sender sees it) and the target."
+          echo "code=128 means the kernel sent it (OOM killer, or the container's init exiting)."
+          sudo grep -E 'signal_generate|sys_kill' /sys/kernel/tracing/trace || echo "none recorded"
+          echo
+          echo "Runner memory (game-ci caps the container at 95% of it):"
+          free -m
+          echo
+          sudo dmesg -T | grep -iE -A30 'out of memory|oom-kill|killed process' || echo "no OOM kill in the kernel log"
+
+      - name: Coverage summary
+        if: ${{ !cancelled() }}
+        run: python3 tools/coverage_summary.py CodeCoverage >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage
+          path: CodeCoverage
+          if-no-files-found: warn
+
+      # Keeps this run's pids out of the Library cache saved after the job.
+      - name: Drop pid files before the cache is saved
+        if: ${{ !cancelled() }}
+        run: rm -f Library/burst.pid Library/ilpp.pid

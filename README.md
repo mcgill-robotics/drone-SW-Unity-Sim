@@ -49,6 +49,8 @@ pass `--vehicle quadplane` to a built player) and start PX4 with
 | `Assets/Editor/DroneSim/SceneBuilder.cs` | Generates the flight scene |
 | `Assets/StreamingAssets/sim_config.json` | Camera topics, frames, resolution, rate and format, read at startup (editable in builds) |
 | `Assets/Tests/EditMode/` | Unit tests |
+| `Assets/Tests/PlayMode/` | Flight scene and PX4 bridge tests, no PX4 needed |
 | `tools/px4_flight_test.py` | Scripted hover or VTOL flight through PX4, with pass/fail exit codes |
 | `tools/px4_airframe.py` | Generates a PX4 SITL airframe from a vehicle spec |
+| `tools/sim_smoke_test.py` | Checks a running sim or player from PX4's side of the link, without PX4 |
 | `missions/` | QGroundControl mission for the quadplane |
