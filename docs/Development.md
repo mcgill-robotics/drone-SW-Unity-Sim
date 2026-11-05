@@ -28,7 +28,7 @@ and reached through `SimSettings.Vehicle`; `VehicleLoader.Loaded` holds the spec
 
 ## Vehicle config
 
-Everything about the aircraft (mass properties, rotors, wing, control surfaces, IMU and camera
+Everything about the aircraft (mass properties, rotors with their motor lag and drag, wing, body drag, control surfaces, IMU and camera
 mounts, PX4 airframe) is in its spec under `Assets/StreamingAssets/vehicles/`, documented in
 [Vehicles](Vehicles). The scene is not involved; see [Scenes](Architecture#scenes) for what is.
 

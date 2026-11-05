@@ -55,6 +55,7 @@ the default.
 | `collider` | [Collider](#collider) |
 | `rotors` | List of [rotors](#rotors), at least one |
 | `wings` | List of at most one [wing](#wings), optional. The quadplane has one; the X500 none |
+| `bodyDrag` | [Body drag](#bodydrag), optional. Off unless `enabled` is true |
 | `controlSurfaces` | List of [control surfaces](#controlsurfaces), optional |
 | `imu` | [IMU mount](#imu) |
 | `cameras` | List of [camera mounts](#cameras), optional |
@@ -174,6 +175,23 @@ quadplane's value, which is plausible for a conventional airframe, not measured.
 | `source` | | | [Source](#sources) |
 
 The summary reports wing loading and the stall speed computed from `cl0 + clAlpha x stallAlpha`.
+
+### bodyDrag
+
+Drag on the airframe itself, separate from the wing's aerodynamics and the rotors' drag. Optional:
+leave the section out, or set `enabled` to false, and nothing changes. Both effects act on the centre
+of mass.
+
+| Field | Unit | Default | Meaning |
+|---|---|---|---|
+| `enabled` | | false | Turns the module on |
+| `cdA` | m^2 | `[0, 0, 0]` | Drag coefficient times reference area along x, y, z (FRD). Force along an axis = 1/2 x air density x `cdA` x speed^2 along that axis, against the airflow. Air density is the wing's, or sea level without one |
+| `angularDamping` | N m s/rad | `[0, 0, 0]` | Torque against rotation per rad/s, about roll, pitch, yaw |
+| `source` | | | [Source](#sources). Listed under `Estimated, not measured` when `estimate` or missing |
+
+Enabling it replaces the 0.05 per second angular damping every vehicle gets by default, so set
+`angularDamping` high enough that the aircraft doesn't spin more freely than before. Values of zero
+for all three axes with `enabled` true remove the damping entirely.
 
 ### controlSurfaces
 

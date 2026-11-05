@@ -27,6 +27,7 @@ namespace DroneSim
         public BoxSpec collider = new BoxSpec();
         public RotorSpec[] rotors = new RotorSpec[0];
         public WingSpec[] wings = new WingSpec[0];
+        public BodyDragSpec bodyDrag = new BodyDragSpec();
         public SurfaceSpec[] controlSurfaces = new SurfaceSpec[0];
         public MountSpec imu = new MountSpec();
         public CameraMountSpec[] cameras = new CameraMountSpec[0];
@@ -122,6 +123,11 @@ namespace DroneSim
             {
                 if (!Is3(w.aeroCenter)) p.Add("wing: aeroCenter needs 3 values");
                 if (w.area <= 0f || w.span <= 0f || w.chord <= 0f) p.Add("wing: area, span and chord must be positive");
+            }
+            if (bodyDrag.enabled)
+            {
+                if (!Is3(bodyDrag.cdA) || bodyDrag.cdA.Any(v => v < 0f)) p.Add("bodyDrag: cdA needs 3 values, none negative");
+                if (!Is3(bodyDrag.angularDamping) || bodyDrag.angularDamping.Any(v => v < 0f)) p.Add("bodyDrag: angularDamping needs 3 values, none negative");
             }
             if (!Is3(imu.position)) p.Add("imu.position needs 3 values");
             foreach (var c in cameras)
@@ -234,6 +240,7 @@ namespace DroneSim
             yield return ("mass properties", massProperties.source ?? "");
             foreach (var r in rotors) yield return ($"rotor {r.name}", r.source ?? "");
             foreach (var w in wings) yield return ("wing", w.source ?? "");
+            if (bodyDrag.enabled) yield return ("body drag", bodyDrag.source ?? "");
             foreach (var s in controlSurfaces) yield return ($"control surface {s.name}", s.source ?? "");
         }
 
@@ -373,6 +380,19 @@ namespace DroneSim
         public float cd0 = 0.04f, oswald = 0.8f, cyBeta = -0.3f;
         public float cmAlpha = -0.6f, cnBeta = 0.08f, clBeta = -0.05f;
         public float clp = -0.5f, cmq = -8f, cnr = -0.1f;
+        public string source;
+    }
+
+    /// <summary>
+    /// Drag on the airframe: quadratic translational drag and linear angular damping. Off unless
+    /// enabled. Turning it on replaces the built-in angular damping of 0.05 per second.
+    /// </summary>
+    [Serializable]
+    public class BodyDragSpec
+    {
+        public bool enabled;
+        [Tooltip("Drag coefficient x reference area (m^2) along x, y, z, FRD")] public float[] cdA = { 0f, 0f, 0f };
+        [Tooltip("Angular damping (N m s/rad) about roll, pitch, yaw")] public float[] angularDamping = { 0f, 0f, 0f };
         public string source;
     }
 

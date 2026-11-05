@@ -113,6 +113,7 @@ values into forces.
 |---|---|
 | `Rotor` | Thrust along the rotor axis at its mount point, plus a reaction torque about it. Thrust = max thrust x speed^2, speed following the command through an exact first-order lag (separate spin-up and spin-down time constants, optional command dead time) with an optional idle speed when armed; or a thrust table looked up on PX4's throttle, with the lag on thrust and torque. Optional rotor drag: a force against the air flowing across the disc, proportional to that airflow and to the rotor speed (PX4's `rotorDragCoefficient`). Spin direction follows the sign of PX4's `CA_ROTORn_KM` (+1 is counter-clockwise from above) |
 | `Wing` | Linear lift curve up to stall, parasitic and induced drag, sideforce, static stability and rate damping, applied at the aerodynamic centre. Airspeed subtracts the wind |
+| `BodyDrag` | Optional. Quadratic drag along each body axis and linear angular damping, at the centre of mass. Replaces the rigidbody's built-in angular damping when enabled |
 | `ControlSurface` | A moment with the roll, pitch and yaw proportions of PX4's `CA_SV_CSn_TRQ_R/P/Y`, proportional to dynamic pressure and deflection, behind a servo lag |
 | `Wind` (`World/Wind.cs`) | Mean vector plus slow gusts |
 

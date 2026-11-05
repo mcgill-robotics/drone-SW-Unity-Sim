@@ -348,5 +348,59 @@ namespace DroneSim.Tests
             Assert.AreEqual(0f, spec.rotors[0].rotorDrag);
             Assert.AreEqual(0f, spec.rotors[0].maxSpeed);
         }
+
+        [Test]
+        public void Problems_BodyDragEnabledWithNegativeCdA_IsReported()
+        {
+            var spec = Shipped("x500");
+            spec.bodyDrag.enabled = true;
+            spec.bodyDrag.cdA = new[] { 0.05f, -0.01f, 0.1f };
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("bodyDrag") && s.Contains("cdA")), string.Join("; ", spec.Problems()));
+        }
+
+        [Test]
+        public void Problems_BodyDragCdAWrongLength_IsReported()
+        {
+            var spec = Shipped("x500");
+            spec.bodyDrag.enabled = true;
+            spec.bodyDrag.cdA = new[] { 0.05f, 0.05f };
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("bodyDrag") && s.Contains("cdA")), string.Join("; ", spec.Problems()));
+        }
+
+        [Test]
+        public void Problems_BodyDragNegativeAngularDamping_IsReported()
+        {
+            var spec = Shipped("x500");
+            spec.bodyDrag.enabled = true;
+            spec.bodyDrag.angularDamping = new[] { 0.01f, -0.01f, 0.01f };
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("bodyDrag") && s.Contains("angularDamping")), string.Join("; ", spec.Problems()));
+        }
+
+        [Test]
+        public void Problems_BodyDragDisabled_IgnoresItsValues()
+        {
+            var spec = Shipped("x500");
+            spec.bodyDrag.enabled = false;
+            spec.bodyDrag.cdA = new[] { -1f };
+            spec.bodyDrag.angularDamping = null;
+            Assert.IsEmpty(spec.Problems());
+        }
+
+        [Test]
+        public void MissingBodyDrag_MeansOff()
+        {
+            var spec = VehicleSpec.Parse(@"{ ""name"": ""t"" }");
+            Assert.IsFalse(spec.bodyDrag.enabled);
+        }
+
+        [Test]
+        public void BodyDragWithoutSource_IsListedAsEstimated()
+        {
+            var spec = Shipped("x500");
+            spec.bodyDrag.enabled = true;
+            spec.bodyDrag.cdA = new[] { 0.05f, 0.05f, 0.1f };
+            spec.bodyDrag.angularDamping = new[] { 0.01f, 0.01f, 0.02f };
+            Assert.That(spec.Summary(out _), Does.Contain("Estimated, not measured").And.Contain("body drag"));
+        }
     }
 }
