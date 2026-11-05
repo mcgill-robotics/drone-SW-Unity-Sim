@@ -138,6 +138,8 @@ namespace DroneSim
             r.timeConstantUp = s.timeConstantUp;
             r.timeConstantDown = s.timeConstantDown;
             r.latency = s.latency;
+            r.dragCoefficient = s.rotorDrag;
+            r.maxSpeed = s.maxSpeed;
             r.idleSpeed = s.idle;
             r.maxThrust = s.MaxThrust(directory);
             if (!string.IsNullOrEmpty(s.thrustTable))

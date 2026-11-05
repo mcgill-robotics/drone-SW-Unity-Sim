@@ -37,6 +37,11 @@ namespace DroneSim
         [Range(0f, 0.5f)] public float idleSpeed = 0f;
         [Tooltip("Runtime multiplier used by domain randomization")] public float efficiency = 1f;
 
+        [Header("Rotor drag (optional)")]
+        [Tooltip("Rotor speed at full throttle (rad/s). Rotor drag needs it; 0 = unset")] public float maxSpeed = 0f;
+        [Tooltip("Drag from air flowing across the disc, per m/s of airflow and rad/s of rotor speed (kg/rad); PX4's rotorDragCoefficient. 0 = off")]
+        public float dragCoefficient = 0f;
+
         [Header("Thrust table (optional)")]
         [Tooltip("Throttle points 0..1 as PX4 commands them, increasing")] public float[] tableThrottle;
         [Tooltip("Thrust at each throttle point (N)")] public float[] tableThrust;
@@ -54,6 +59,8 @@ namespace DroneSim
         public float Thrust { get; private set; }
         /// <summary>Reaction torque magnitude (N m); its sign comes from spinDirection.</summary>
         public float Torque { get; private set; }
+        /// <summary>Rotor speed as a fraction of full speed. Thrust goes as speed squared, so this is sqrt(thrust / maxThrust).</summary>
+        public float SpeedFraction { get; private set; }
 
         private Rigidbody rb;
         private float commanded;
@@ -99,6 +106,27 @@ namespace DroneSim
             Vector3 axis = transform.up;
             rb.AddForceAtPosition(axis * Thrust, transform.position, ForceMode.Force);
             rb.AddTorque(axis * (Torque * spinDirection), ForceMode.Force);
+
+            if (dragCoefficient > 0f && maxSpeed > 0f)
+            {
+                // Air moving across the spinning disc pushes back on it, at the rotor position.
+                Vector3 airVelocity = rb.GetPointVelocity(transform.position) - Wind.At(transform.position);
+                Vector3 drag = DragForce(airVelocity, axis, maxSpeed * SpeedFraction, dragCoefficient);
+                rb.AddForceAtPosition(drag, transform.position, ForceMode.Force);
+            }
+        }
+
+        /// <summary>
+        /// Rotor drag, as in PX4's gz MulticopterMotorModel: air flowing across the rotor disc (the part
+        /// of airVelocity perpendicular to axis) pushes back on it with a force proportional to that
+        /// airflow and to the rotor speed omega (rad/s). Flow along the axis is thrust's business, not
+        /// drag's. Returns a force in the same frame as airVelocity and axis.
+        /// </summary>
+        public static Vector3 DragForce(Vector3 airVelocity, Vector3 axis, float omega, float coefficient)
+        {
+            Vector3 unitAxis = axis.normalized;
+            Vector3 across = airVelocity - unitAxis * Vector3.Dot(airVelocity, unitAxis);
+            return -Mathf.Abs(omega) * coefficient * across;
         }
 
         /// <summary>
@@ -149,6 +177,7 @@ namespace DroneSim
                 thrust = maxThrust * w2;
                 torque = maxTorque * w2;
             }
+            SpeedFraction = maxThrust > 0f ? Mathf.Sqrt(Mathf.Max(thrust, 0f) / maxThrust) : 0f;
             Thrust = thrust * efficiency;
             Torque = torque;
         }

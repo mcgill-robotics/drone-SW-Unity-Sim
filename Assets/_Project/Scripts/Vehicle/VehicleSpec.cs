@@ -98,6 +98,8 @@ namespace DroneSim
                 if (r.timeConstantUp < 0f) p.Add($"{who}: timeConstantUp can't be negative (0 uses timeConstant)");
                 if (r.timeConstantDown < 0f) p.Add($"{who}: timeConstantDown can't be negative (0 uses timeConstant)");
                 if (r.latency < 0f || r.latency > 0.5f) p.Add($"{who}: latency must be 0 to 0.5 s");
+                if (r.rotorDrag < 0f) p.Add($"{who}: rotorDrag can't be negative");
+                if (r.rotorDrag > 0f && r.maxSpeed <= 0f) p.Add($"{who}: rotorDrag needs maxSpeed (rotor speed at full throttle, rad/s) to know how fast the rotor spins");
                 if (r.idle < 0f || r.idle > 0.5f) p.Add($"{who}: idle must be 0 to 0.5");
                 if (!string.IsNullOrEmpty(r.thrustTable))
                 {
@@ -300,6 +302,9 @@ namespace DroneSim
         [Tooltip("Spin-up time constant (s). 0 uses timeConstant")] public float timeConstantUp;
         [Tooltip("Spin-down time constant (s). 0 uses timeConstant")] public float timeConstantDown;
         [Tooltip("Dead time between a command arriving and the motor responding (s), 0 to 0.5. 0 for none")] public float latency;
+        [Tooltip("Rotor drag coefficient (kg/rad): drag per m/s of airflow across the disc and rad/s of rotor speed, PX4's rotorDragCoefficient. 0 for none")]
+        public float rotorDrag;
+        [Tooltip("Rotor speed at full throttle (rad/s). Required when rotorDrag is set")] public float maxSpeed;
         [Tooltip("Speed when armed at zero throttle, as a fraction of full. 0 with a thrustTable")] public float idle;
         [Tooltip("CSV next to the spec: throttle as PX4 commands it (0..1), thrust (N), optional torque (N m)")]
         public string thrustTable;

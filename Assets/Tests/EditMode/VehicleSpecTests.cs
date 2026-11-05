@@ -303,5 +303,50 @@ namespace DroneSim.Tests
             Assert.AreEqual(0f, r.timeConstantDown);
             Assert.AreEqual(0f, r.latency);
         }
+
+        [Test]
+        public void Problems_RotorDragWithoutMaxSpeed_NamesMaxSpeed()
+        {
+            var spec = Shipped("x500");
+            spec.rotors[0].rotorDrag = 1e-4f;
+            spec.rotors[0].maxSpeed = 0f;
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("maxSpeed")), string.Join("; ", spec.Problems()));
+        }
+
+        [Test]
+        public void Problems_NegativeRotorDrag_IsReported()
+        {
+            var spec = Shipped("x500");
+            spec.rotors[0].rotorDrag = -1e-4f;
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("rotorDrag")), string.Join("; ", spec.Problems()));
+        }
+
+        [Test]
+        public void Problems_MaxSpeedWithoutRotorDrag_IsFine()
+        {
+            var spec = Shipped("x500");
+            spec.rotors[0].rotorDrag = 0f;
+            spec.rotors[0].maxSpeed = 1000f;
+            Assert.IsEmpty(spec.Problems());
+        }
+
+        [Test]
+        public void ShippedX500_RotorDragMatchesGazeboModel()
+        {
+            // PX4 gz x500 model.sdf: rotorDragCoefficient 8.06428e-05, maxRotVelocity 1000.
+            foreach (var r in Shipped("x500").rotors)
+            {
+                Assert.AreEqual(8.06428e-5f, r.rotorDrag, 1e-9f, r.name);
+                Assert.AreEqual(1000f, r.maxSpeed, r.name);
+            }
+        }
+
+        [Test]
+        public void MissingRotorDragFields_MeanOff()
+        {
+            var spec = VehicleSpec.Parse(@"{ ""name"": ""t"", ""rotors"": [ { ""name"": ""r"", ""position"": [0,0,0], ""direction"": ""ccw"", ""maxThrust"": 10 } ] }");
+            Assert.AreEqual(0f, spec.rotors[0].rotorDrag);
+            Assert.AreEqual(0f, spec.rotors[0].maxSpeed);
+        }
     }
 }
