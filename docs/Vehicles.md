@@ -111,7 +111,7 @@ that split.
 | `timeConstant` | s | 0.05 | First-order lag between the command and the motor speed, for spinning up and down. Must be positive |
 | `timeConstantUp` | s | 0 | Lag when speeding up. 0 uses `timeConstant`. The Gazebo X500 uses 0.0125 |
 | `timeConstantDown` | s | 0 | Lag when slowing down. 0 uses `timeConstant`. The Gazebo X500 uses 0.025 |
-| `latency` | s | 0 | Dead time between a command arriving and the motor starting to respond. 0 to 0.5. A disarm cuts the motor at once and cancels commands still waiting |
+| `latency` | s | 0 | Dead time between a command arriving and the motor starting to respond, rounded up to whole physics steps (4 ms). 0 to 0.5. A disarm cuts the motor at once and cancels commands still waiting |
 | `rotorDrag` | kg/rad | 0 | Drag from air flowing across the propeller disc: force = `rotorDrag` x rotor speed (rad/s) x the airflow across the disc (m/s), against the airflow, applied at the rotor. PX4's `rotorDragCoefficient`; the Gazebo X500 uses 8.06428e-05. 0 turns it off. Needs `maxSpeed` |
 | `maxSpeed` | rad/s | 0 | Rotor speed at full throttle (the Gazebo X500's `maxRotVelocity` is 1000). Rotor speed is this x sqrt(thrust / max thrust). Only used by `rotorDrag` |
 | `idle` | | 0 | Speed when armed at zero throttle, as a fraction of full speed. 0 to 0.5. The Gazebo X500 idles at 0.15. Must be 0 with a `thrustTable` |

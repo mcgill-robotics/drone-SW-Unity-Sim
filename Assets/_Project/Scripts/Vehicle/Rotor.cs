@@ -72,6 +72,14 @@ namespace DroneSim
         private readonly Queue<(double time, float value)> pending = new Queue<(double time, float value)>();
         private double clock;
 
+        /// <summary>
+        /// Most commands kept waiting. latency is at most 0.5 s, so even a 1 ms step needs only 500; the
+        /// cap only matters when this rotor stops stepping (disabled) while Apply keeps arriving.
+        /// </summary>
+        public const int MaxPendingCommands = 600;
+        /// <summary>Commands received but still inside the dead time.</summary>
+        public int PendingCommands => pending.Count;
+
         private void Awake() => rb = GetComponentInParent<Rigidbody>();
 
         public void Apply(float[] controls, bool armed)
@@ -86,7 +94,11 @@ namespace DroneSim
                 pending.Clear();
                 commanded = 0f;
             }
-            else if (latency > 0f) pending.Enqueue((clock, target));
+            else if (latency > 0f)
+            {
+                pending.Enqueue((clock, target));
+                if (pending.Count > MaxPendingCommands) pending.Dequeue();   // drop the oldest
+            }
             else commanded = target;
         }
 
@@ -147,11 +159,14 @@ namespace DroneSim
         /// <summary>Advances the clock, the command dead time and the spin lag by dt; sets Throttle, Thrust and Torque.</summary>
         public void Step(float dt)
         {
-            clock += dt;
-            // Hand over every queued command that is old enough; the newest of them wins. The 1e-6
-            // absorbs the float rounding of summing several dt.
+            // Hand over every queued command that has waited the full latency; the newest of them wins.
+            // This runs before the clock moves on: a command received at time t is used by the first step
+            // that starts at t + latency or later, so the dead time is the latency rounded up to whole
+            // steps. (Advancing the clock first would make it one step short.) The 1e-6 absorbs the
+            // float rounding of summing several dt.
             while (pending.Count > 0 && clock - pending.Peek().time >= latency - 1e-6)
                 commanded = pending.Dequeue().value;
+            clock += dt;
 
             Throttle = Mathf.Lerp(Throttle, commanded, LagAlphaToward(Throttle, commanded, dt));
 

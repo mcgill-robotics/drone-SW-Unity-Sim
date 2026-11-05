@@ -101,9 +101,9 @@ namespace DroneSim.Tests
             r.timeConstant = 0.02f;
             r.latency = 0.02f;
             r.Apply(Controls(1f), armed: true);
-            StepFor(r, 4, 0.004f);                        // age 0.016 s, still waiting
+            StepFor(r, 5, 0.004f);                        // 0.020 s of dead time, no response yet
             Assert.AreEqual(0f, r.Throttle);
-            r.Step(0.004f);                               // age 0.020 s, the command arrives
+            r.Step(0.004f);                               // the first step after it
             Assert.Greater(r.Throttle, 0f);
         }
 
@@ -131,6 +131,31 @@ namespace DroneSim.Tests
             r.ResetActuator();
             StepFor(r, 20, 0.004f);
             Assert.AreEqual(0f, r.Throttle);
+        }
+
+        [TestCase(0.004f, 5)]
+        [TestCase(0.002f, 10)]
+        [TestCase(0.001f, 20)]
+        public void Latency_DeadTimeIsIndependentOfStepSize(float dt, int silentSteps)
+        {
+            var r = NewRotor(go);
+            r.timeConstant = 0.02f;
+            r.latency = 0.02f;
+            r.Apply(Controls(1f), armed: true);
+            StepFor(r, silentSteps, dt);                  // silentSteps x dt = 0.02 s, whatever the step
+            Assert.AreEqual(0f, r.Throttle);
+            r.Step(dt);
+            Assert.Greater(r.Throttle, 0f);
+        }
+
+        [Test]
+        public void Latency_PendingCommandsAreCapped()
+        {
+            // A rotor that is never stepped (disabled) still gets Apply every physics step.
+            var r = NewRotor(go);
+            r.latency = 0.02f;
+            for (int i = 0; i < 5000; i++) r.Apply(Controls(1f), armed: true);
+            Assert.LessOrEqual(r.PendingCommands, Rotor.MaxPendingCommands);
         }
     }
 }
