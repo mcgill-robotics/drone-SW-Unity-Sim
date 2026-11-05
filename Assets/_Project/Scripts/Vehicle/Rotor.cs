@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace DroneSim
@@ -28,7 +29,10 @@ namespace DroneSim
         [Tooltip("Thrust at full throttle (N)")] public float maxThrust = 25f;
         [Tooltip("Reaction torque at full throttle (N m)")] public float maxTorque = 0.3f;
         [Tooltip("+1 for CCW seen from above (PX4 CA_ROTORn_KM > 0), -1 for CW")] public int spinDirection = 1;
-        [Tooltip("Spin-up time constant (s)")] public float timeConstant = 0.05f;
+        [Tooltip("Spin-up and spin-down time constant (s), unless timeConstantUp or timeConstantDown is set")] public float timeConstant = 0.05f;
+        [Tooltip("Spin-up time constant (s). 0 uses timeConstant")] public float timeConstantUp = 0f;
+        [Tooltip("Spin-down time constant (s). 0 uses timeConstant")] public float timeConstantDown = 0f;
+        [Tooltip("Dead time between a command arriving and the motor responding to it (s). 0 for none")] public float latency = 0f;
         [Tooltip("Fraction of full speed when armed at zero command (Gazebo's SIM_GZ_EC_MIN / MAX). Not used with a thrust table")]
         [Range(0f, 0.5f)] public float idleSpeed = 0f;
         [Tooltip("Runtime multiplier used by domain randomization")] public float efficiency = 1f;
@@ -56,13 +60,27 @@ namespace DroneSim
         private bool running;
         private float tableThrustLagged, tableTorqueLagged;
 
+        // Commands that have arrived but are still inside the dead time, oldest first. The clock is a
+        // double: a float loses millisecond resolution after a few hours of simulated time.
+        private readonly Queue<(double time, float value)> pending = new Queue<(double time, float value)>();
+        private double clock;
+
         private void Awake() => rb = GetComponentInParent<Rigidbody>();
 
         public void Apply(float[] controls, bool armed)
         {
             running = armed && channel < controls.Length;
             float c = running ? Mathf.Clamp01(controls[channel]) : 0f;
-            commanded = !running ? 0f : HasTable ? c : idleSpeed + (1f - idleSpeed) * c;
+            float target = !running ? 0f : HasTable ? c : idleSpeed + (1f - idleSpeed) * c;
+
+            if (!running)
+            {
+                // A disarmed motor is cut at once, and nothing still waiting may restart it later.
+                pending.Clear();
+                commanded = 0f;
+            }
+            else if (latency > 0f) pending.Enqueue((clock, target));
+            else commanded = target;
         }
 
         public void ResetActuator()
@@ -70,6 +88,8 @@ namespace DroneSim
             running = false;
             commanded = 0f; Throttle = 0f; Thrust = 0f; Torque = 0f;
             tableThrustLagged = 0f; tableTorqueLagged = 0f;
+            pending.Clear();
+            clock = 0.0;
         }
 
         private void FixedUpdate()
@@ -81,11 +101,31 @@ namespace DroneSim
             rb.AddTorque(axis * (Torque * spinDirection), ForceMode.Force);
         }
 
-        /// <summary>Advances the spin-up lag by dt and sets Throttle, Thrust and Torque.</summary>
+        /// <summary>
+        /// Fraction of the remaining gap a first-order lag with time constant tau closes in dt. This is
+        /// the exact solution of dx/dt = (target - x) / tau, so the response doesn't depend on the step
+        /// size; dt / tau is only its first-order approximation.
+        /// </summary>
+        public static float LagAlpha(float dt, float tau) => 1f - Mathf.Exp(-dt / Mathf.Max(tau, 1e-3f));
+
+        /// <summary>LagAlpha with the up constant if target is above current, the down constant otherwise.</summary>
+        private float LagAlphaToward(float current, float target, float dt)
+        {
+            float up = timeConstantUp > 0f ? timeConstantUp : timeConstant;
+            float down = timeConstantDown > 0f ? timeConstantDown : timeConstant;
+            return LagAlpha(dt, target > current ? up : down);
+        }
+
+        /// <summary>Advances the clock, the command dead time and the spin lag by dt; sets Throttle, Thrust and Torque.</summary>
         public void Step(float dt)
         {
-            float alpha = Mathf.Clamp01(dt / Mathf.Max(timeConstant, 1e-3f));
-            Throttle = Mathf.Lerp(Throttle, commanded, alpha);
+            clock += dt;
+            // Hand over every queued command that is old enough; the newest of them wins. The 1e-6
+            // absorbs the float rounding of summing several dt.
+            while (pending.Count > 0 && clock - pending.Peek().time >= latency - 1e-6)
+                commanded = pending.Dequeue().value;
+
+            Throttle = Mathf.Lerp(Throttle, commanded, LagAlphaToward(Throttle, commanded, dt));
 
             float thrust, torque;
             if (HasTable)
@@ -98,8 +138,8 @@ namespace DroneSim
                         ? Interpolate(tableThrottle, tableTorque, commanded)
                         : targetThrust * maxTorque / Mathf.Max(maxThrust, 1e-6f);
                 }
-                tableThrustLagged = Mathf.Lerp(tableThrustLagged, targetThrust, alpha);
-                tableTorqueLagged = Mathf.Lerp(tableTorqueLagged, targetTorque, alpha);
+                tableThrustLagged = Mathf.Lerp(tableThrustLagged, targetThrust, LagAlphaToward(tableThrustLagged, targetThrust, dt));
+                tableTorqueLagged = Mathf.Lerp(tableTorqueLagged, targetTorque, LagAlphaToward(tableTorqueLagged, targetTorque, dt));
                 thrust = tableThrustLagged;
                 torque = tableTorqueLagged;
             }

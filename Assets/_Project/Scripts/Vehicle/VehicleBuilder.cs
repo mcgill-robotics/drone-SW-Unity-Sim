@@ -135,6 +135,9 @@ namespace DroneSim
             r.channel = s.channel;
             r.spinDirection = s.Spin;
             r.timeConstant = s.timeConstant;
+            r.timeConstantUp = s.timeConstantUp;
+            r.timeConstantDown = s.timeConstantDown;
+            r.latency = s.latency;
             r.idleSpeed = s.idle;
             r.maxThrust = s.MaxThrust(directory);
             if (!string.IsNullOrEmpty(s.thrustTable))

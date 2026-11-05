@@ -107,7 +107,10 @@ that split.
 | `maxThrust` | N | | Thrust at full speed. Thrust is `maxThrust x speed^2`. Required unless `thrustTable` is set, and ignored when it is |
 | `thrustTable` | | | CSV file next to the spec, see [Thrust tables](#thrust-tables). Replaces `maxThrust` |
 | `momentRatio` | m | 0.016 | Reaction torque per newton of thrust, PX4's `CA_ROTORn_KM` without the sign. Ignored when the thrust table has a torque column |
-| `timeConstant` | s | 0.05 | First-order spin-up lag. Must be positive |
+| `timeConstant` | s | 0.05 | First-order lag between the command and the motor speed, for spinning up and down. Must be positive |
+| `timeConstantUp` | s | 0 | Lag when speeding up. 0 uses `timeConstant`. The Gazebo X500 uses 0.0125 |
+| `timeConstantDown` | s | 0 | Lag when slowing down. 0 uses `timeConstant`. The Gazebo X500 uses 0.025 |
+| `latency` | s | 0 | Dead time between a command arriving and the motor starting to respond. 0 to 0.5. A disarm cuts the motor at once and cancels commands still waiting |
 | `idle` | | 0 | Speed when armed at zero throttle, as a fraction of full speed. 0 to 0.5. The Gazebo X500 idles at 0.15. Must be 0 with a `thrustTable` |
 | `source` | | | [Source](#sources) |
 

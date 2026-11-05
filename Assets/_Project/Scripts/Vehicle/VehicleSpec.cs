@@ -95,6 +95,9 @@ namespace DroneSim
                 if (string.IsNullOrEmpty(r.thrustTable) && r.maxThrust <= 0f) p.Add($"{who}: needs maxThrust or a thrustTable");
                 if (r.momentRatio < 0f) p.Add($"{who}: momentRatio can't be negative");
                 if (r.timeConstant <= 0f) p.Add($"{who}: timeConstant must be positive");
+                if (r.timeConstantUp < 0f) p.Add($"{who}: timeConstantUp can't be negative (0 uses timeConstant)");
+                if (r.timeConstantDown < 0f) p.Add($"{who}: timeConstantDown can't be negative (0 uses timeConstant)");
+                if (r.latency < 0f || r.latency > 0.5f) p.Add($"{who}: latency must be 0 to 0.5 s");
                 if (r.idle < 0f || r.idle > 0.5f) p.Add($"{who}: idle must be 0 to 0.5");
                 if (!string.IsNullOrEmpty(r.thrustTable))
                 {
@@ -293,7 +296,10 @@ namespace DroneSim
         public float maxThrust;
         [Tooltip("Reaction torque per newton of thrust (m), PX4's |CA_ROTORn_KM|")]
         public float momentRatio = 0.016f;
-        [Tooltip("Spin-up time constant (s)")] public float timeConstant = 0.05f;
+        [Tooltip("Spin-up and spin-down time constant (s), unless timeConstantUp or timeConstantDown is set")] public float timeConstant = 0.05f;
+        [Tooltip("Spin-up time constant (s). 0 uses timeConstant")] public float timeConstantUp;
+        [Tooltip("Spin-down time constant (s). 0 uses timeConstant")] public float timeConstantDown;
+        [Tooltip("Dead time between a command arriving and the motor responding (s), 0 to 0.5. 0 for none")] public float latency;
         [Tooltip("Speed when armed at zero throttle, as a fraction of full. 0 with a thrustTable")] public float idle;
         [Tooltip("CSV next to the spec: throttle as PX4 commands it (0..1), thrust (N), optional torque (N m)")]
         public string thrustTable;

@@ -257,5 +257,51 @@ namespace DroneSim.Tests
             Assert.Throws<System.NullReferenceException>(() => VehicleBuilder.BuildPreview(spec));
             Assert.AreEqual(before, Resources.FindObjectsOfTypeAll<MeshRenderer>().Length);
         }
+
+        [Test]
+        public void Problems_NegativeTimeConstantUp_IsReported()
+        {
+            var spec = Shipped("x500");
+            spec.rotors[0].timeConstantUp = -0.01f;
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("timeConstantUp")), string.Join("; ", spec.Problems()));
+        }
+
+        [Test]
+        public void Problems_NegativeTimeConstantDown_IsReported()
+        {
+            var spec = Shipped("x500");
+            spec.rotors[0].timeConstantDown = -0.01f;
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("timeConstantDown")), string.Join("; ", spec.Problems()));
+        }
+
+        [TestCase(-0.01f)]
+        [TestCase(0.6f)]
+        public void Problems_LatencyOutsideZeroToHalfSecond_IsReported(float latency)
+        {
+            var spec = Shipped("x500");
+            spec.rotors[0].latency = latency;
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("latency")), string.Join("; ", spec.Problems()));
+        }
+
+        [Test]
+        public void ShippedX500_MotorLagMatchesGazeboModel()
+        {
+            // PX4 gz x500 model.sdf: timeConstantUp 0.0125, timeConstantDown 0.025.
+            foreach (var r in Shipped("x500").rotors)
+            {
+                Assert.AreEqual(0.0125f, r.timeConstantUp, 1e-6f, r.name);
+                Assert.AreEqual(0.025f, r.timeConstantDown, 1e-6f, r.name);
+            }
+        }
+
+        [Test]
+        public void MissingMotorLagFields_MeanOff()
+        {
+            var spec = VehicleSpec.Parse(@"{ ""name"": ""t"", ""rotors"": [ { ""name"": ""r"", ""position"": [0,0,0], ""direction"": ""ccw"", ""maxThrust"": 10 } ] }");
+            var r = spec.rotors[0];
+            Assert.AreEqual(0f, r.timeConstantUp);
+            Assert.AreEqual(0f, r.timeConstantDown);
+            Assert.AreEqual(0f, r.latency);
+        }
     }
 }

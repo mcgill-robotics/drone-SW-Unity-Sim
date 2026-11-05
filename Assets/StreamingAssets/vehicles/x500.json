@@ -10,13 +10,13 @@
   "collider": { "center": [0, 0, 0.1], "size": [0.35, 0.35, 0.26] },
   "rotors": [
     { "name": "RotorFR", "channel": 0, "position": [0.174, 0.174, -0.06], "axis": [0, 0, -1], "direction": "ccw",
-      "propDiameter": 0.28, "maxThrust": 8.54858, "momentRatio": 0.016, "timeConstant": 0.02, "idle": 0.15, "source": "PX4 Gazebo x500 model" },
+      "propDiameter": 0.28, "maxThrust": 8.54858, "momentRatio": 0.016, "timeConstant": 0.02, "timeConstantUp": 0.0125, "timeConstantDown": 0.025, "idle": 0.15, "source": "PX4 Gazebo x500 model" },
     { "name": "RotorRL", "channel": 1, "position": [-0.174, -0.174, -0.06], "axis": [0, 0, -1], "direction": "ccw",
-      "propDiameter": 0.28, "maxThrust": 8.54858, "momentRatio": 0.016, "timeConstant": 0.02, "idle": 0.15, "source": "PX4 Gazebo x500 model" },
+      "propDiameter": 0.28, "maxThrust": 8.54858, "momentRatio": 0.016, "timeConstant": 0.02, "timeConstantUp": 0.0125, "timeConstantDown": 0.025, "idle": 0.15, "source": "PX4 Gazebo x500 model" },
     { "name": "RotorFL", "channel": 2, "position": [0.174, -0.174, -0.06], "axis": [0, 0, -1], "direction": "cw",
-      "propDiameter": 0.28, "maxThrust": 8.54858, "momentRatio": 0.016, "timeConstant": 0.02, "idle": 0.15, "source": "PX4 Gazebo x500 model" },
+      "propDiameter": 0.28, "maxThrust": 8.54858, "momentRatio": 0.016, "timeConstant": 0.02, "timeConstantUp": 0.0125, "timeConstantDown": 0.025, "idle": 0.15, "source": "PX4 Gazebo x500 model" },
     { "name": "RotorRR", "channel": 3, "position": [-0.174, 0.174, -0.06], "axis": [0, 0, -1], "direction": "cw",
-      "propDiameter": 0.28, "maxThrust": 8.54858, "momentRatio": 0.016, "timeConstant": 0.02, "idle": 0.15, "source": "PX4 Gazebo x500 model" }
+      "propDiameter": 0.28, "maxThrust": 8.54858, "momentRatio": 0.016, "timeConstant": 0.02, "timeConstantUp": 0.0125, "timeConstantDown": 0.025, "idle": 0.15, "source": "PX4 Gazebo x500 model" }
   ],
   "imu": { "position": [0, 0, 0] },
   "cameras": [
