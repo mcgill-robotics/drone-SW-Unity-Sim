@@ -65,7 +65,7 @@ namespace DroneSim
         /// <summary>Everything that stops this spec from building. Empty when it can be used.</summary>
         public List<string> Problems()
         {
-            var p = new List<string>();
+            var p = GeometryProblems();
             if (string.IsNullOrEmpty(name)) p.Add("name is empty");
             if (massProperties.mass <= 0f) p.Add("massProperties.mass must be positive");
             if (!Is3(massProperties.cg)) p.Add("massProperties.cg needs 3 values");
@@ -78,9 +78,6 @@ namespace DroneSim
                 var pm = PrincipalInertia();
                 if (!(pm.x > 0f)) p.Add($"massProperties.inertia has principal moments {pm.x:0.####}, {pm.y:0.####}, {pm.z:0.####}, not all positive; check the signs of ixy, ixz and iyz");
             }
-            if (!Is3(collider.center)) p.Add("collider.center needs 3 values");
-            if (!Is3(collider.size) || collider.size.Any(s => s <= 0f)) p.Add("collider.size needs 3 positive values");
-
             var channels = new Dictionary<int, string>();
             void Channel(int ch, string who)
             {
@@ -94,8 +91,6 @@ namespace DroneSim
             {
                 string who = $"rotor {r.name}";
                 Channel(r.channel, who);
-                if (!Is3(r.position)) p.Add($"{who}: position needs 3 values");
-                if (!Is3(r.axis) || ToVector(r.axis).sqrMagnitude < 1e-6f) p.Add($"{who}: axis needs 3 values, not all zero");
                 if (r.direction != "ccw" && r.direction != "cw") p.Add($"{who}: direction must be ccw or cw");
                 if (string.IsNullOrEmpty(r.thrustTable) && r.maxThrust <= 0f) p.Add($"{who}: needs maxThrust or a thrustTable");
                 if (r.momentRatio < 0f) p.Add($"{who}: momentRatio can't be negative");
@@ -126,6 +121,24 @@ namespace DroneSim
             if (!Is3(imu.position)) p.Add("imu.position needs 3 values");
             foreach (var c in cameras)
                 if (string.IsNullOrEmpty(c.name) || !Is3(c.position)) p.Add($"camera {c.name}: needs a name and 3 position values");
+            if (string.IsNullOrEmpty(px4.baseAirframe)) p.Add("px4.baseAirframe is empty");
+            if (px4.autostartId <= 0) p.Add("px4.autostartId must be positive");
+            return p;
+        }
+
+        /// <summary>Checks only the shapes and collider bounds needed to draw and place a preview.</summary>
+        public List<string> GeometryProblems()
+        {
+            var p = new List<string>();
+            if (!Is3(collider.center)) p.Add("collider.center needs 3 values");
+            if (!Is3(collider.size) || collider.size.Any(s => s <= 0f)) p.Add("collider.size needs 3 positive values");
+            foreach (var r in rotors)
+            {
+                string who = $"rotor {r.name}";
+                if (!Is3(r.position)) p.Add($"{who}: position needs 3 values");
+                if (!Is3(r.axis) || ToVector(r.axis).sqrMagnitude < 1e-6f) p.Add($"{who}: axis needs 3 values, not all zero");
+                if (r.propDiameter <= 0f) p.Add($"{who}: propDiameter must be positive");
+            }
             foreach (var v in visuals)
             {
                 string who = $"visual {v.name}";
@@ -141,8 +154,6 @@ namespace DroneSim
                 }
                 else p.Add($"{who}: shape must be box, capsule or cylinder");
             }
-            if (string.IsNullOrEmpty(px4.baseAirframe)) p.Add("px4.baseAirframe is empty");
-            if (px4.autostartId <= 0) p.Add("px4.autostartId must be positive");
             return p;
         }
 

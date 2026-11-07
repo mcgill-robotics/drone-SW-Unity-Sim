@@ -1,0 +1,10 @@
+{
+    "name": "DroneSim.Editor",
+    "references": [
+        "DroneSim",
+        "Unity.Robotics.ROSTCPConnector"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ]
+}

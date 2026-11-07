@@ -130,6 +130,7 @@ the spec.
 `Assets/Editor/DroneSim/SceneBuilder.cs` (Drone Sim > Build Flight Scene): a flat ground plane
 with a runway, a `Managers` object carrying the scene-wide components (`SimSettings`,
 `ROSSettings`, `GeoOrigin`, `Wind`, `VehicleLoader`, `Px4HilBridge`, `ROSConnection` and others),
-and a chase camera. The vehicle is not in the scene; `VehicleLoader` builds it when the scene
-starts. Edit the builder rather than the scene, rebuild it from the menu, and commit both. Field
+and a chase camera. An editor-only visual preview shows the selected vehicle before Play;
+`VehicleLoader` builds the simulated vehicle when the scene starts. The preview is not saved.
+Edit the builder rather than the scene, rebuild it from the menu, and commit both. Field
 values changed in the Inspector on `Managers` are lost at the next rebuild.

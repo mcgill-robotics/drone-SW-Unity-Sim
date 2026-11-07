@@ -12,7 +12,13 @@ The code is in `Assets/_Project/Scripts/Vehicle/`: `VehicleSpec.cs` (format, che
 ## Selecting a vehicle
 
 - Editor: the `Vehicle` field on the `VehicleLoader` component of `Managers` in
-  `Assets/_Project/Scenes/Flight.unity`. Default `x500`.
+  `Assets/_Project/Scenes/Flight.unity`. Default `x500`. The Scene view shows a visual-only
+  preview before Play. Press Enter or leave the field to apply a vehicle selection; typing alone
+  does not change the preview. Applied selections and spec edits refresh it within about half a
+  second, including specs outside the project. The preview is not saved into the scene and is
+  removed before the runtime vehicle is built. Only geometry is validated for the preview;
+  incomplete physics, PX4 settings or thrust-table CSVs do not block it. Runtime loading still
+  performs full validation.
 - Built player: `--vehicle x500`, `--vehicle quadplane` or `--vehicle path/to/spec.json`
   ([Standalone build](Setup#standalone-build)). A value ending in `.json` or containing a slash is
   a path; anything else is a name in `StreamingAssets/vehicles`.

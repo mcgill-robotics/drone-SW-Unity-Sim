@@ -153,6 +153,22 @@ namespace DroneSim.Tests
         }
 
         [Test]
+        public void GeometryProblems_AreAlsoReportedByFullValidation()
+        {
+            var spec = Shipped("x500");
+            spec.collider.size = null;
+            spec.rotors[0].position = new[] { 0f, 0f };
+            spec.rotors[0].axis = new[] { 0f, 0f, 0f };
+            spec.rotors[0].propDiameter = 0f;
+            spec.visuals[0].size = null;
+            var problems = spec.GeometryProblems();
+            Assert.AreEqual(5, problems.Count);
+            foreach (string field in new[] { "collider.size", "position", "axis", "propDiameter", $"visual {spec.visuals[0].name}: size" })
+                Assert.IsTrue(problems.Any(p => p.Contains(field)), field);
+            CollectionAssert.IsSubsetOf(problems, spec.Problems());
+        }
+
+        [Test]
         public void Problems_FlagsInertiaWithANegativePrincipalMoment()
         {
             var spec = Shipped("quadplane");
@@ -199,6 +215,47 @@ namespace DroneSim.Tests
                 Assert.IsNotNull(go.GetComponent<VehicleActuators>());
             }
             finally { Object.DestroyImmediate(go); }
+        }
+
+        [TestCase("x500")]
+        [TestCase("quadplane")]
+        public void Preview_MatchesVehicleGeometryWithoutSimulation(string name)
+        {
+            var spec = Shipped(name);
+            var preview = VehicleBuilder.BuildPreview(spec);
+            var go = VehicleBuilder.Build(spec, new Vector3(0f, VehicleBuilder.SpawnHeight(spec), 0f));
+            try
+            {
+                var meshes = go.GetComponentsInChildren<MeshFilter>();
+                var previewMeshes = preview.GetComponentsInChildren<MeshFilter>();
+                Assert.AreEqual(spec.visuals.Length + spec.rotors.Length, previewMeshes.Length);
+                Assert.AreEqual(meshes.Length, previewMeshes.Length);
+                for (int i = 0; i < meshes.Length; i++)
+                {
+                    Assert.AreSame(meshes[i].sharedMesh, previewMeshes[i].sharedMesh);
+                    Assert.AreEqual(meshes[i].transform.localToWorldMatrix, previewMeshes[i].transform.localToWorldMatrix);
+                }
+                Assert.IsEmpty(preview.GetComponentsInChildren<Rigidbody>());
+                Assert.IsEmpty(preview.GetComponentsInChildren<Collider>());
+                Assert.IsEmpty(preview.GetComponentsInChildren<Behaviour>());
+                foreach (var t in preview.GetComponentsInChildren<Transform>())
+                    Assert.AreEqual(HideFlags.HideAndDontSave, t.gameObject.hideFlags);
+            }
+            finally
+            {
+                Object.DestroyImmediate(preview);
+                Object.DestroyImmediate(go);
+            }
+        }
+
+        [Test]
+        public void Preview_DestroysHalfBuiltGeometry()
+        {
+            var spec = Shipped("x500");
+            spec.visuals[0].size = null;
+            int before = Resources.FindObjectsOfTypeAll<MeshRenderer>().Length;
+            Assert.Throws<System.NullReferenceException>(() => VehicleBuilder.BuildPreview(spec));
+            Assert.AreEqual(before, Resources.FindObjectsOfTypeAll<MeshRenderer>().Length);
         }
     }
 }
