@@ -30,6 +30,28 @@ namespace DroneSim
             }
         }
 
+#if UNITY_EDITOR
+        /// <summary>Unsaved editor geometry only: no physics, sensors or simulation scripts.</summary>
+        public static GameObject BuildPreview(VehicleSpec spec)
+        {
+            var root = new GameObject("Vehicle Preview");
+            try
+            {
+                root.transform.position = new Vector3(0f, SpawnHeight(spec), 0f);
+                foreach (var v in spec.visuals) AddVisual(root, v);
+                foreach (var r in spec.rotors) AddRotorVisual(root, r);
+                foreach (var t in root.GetComponentsInChildren<Transform>())
+                    t.gameObject.hideFlags = HideFlags.HideAndDontSave;
+                return root;
+            }
+            catch
+            {
+                Object.DestroyImmediate(root);
+                throw;
+            }
+        }
+#endif
+
         static void Populate(GameObject root, VehicleSpec spec, Vector3 position)
         {
             root.transform.position = position;
@@ -91,7 +113,7 @@ namespace DroneSim
             w.clp = s.clp; w.cmq = s.cmq; w.cnr = s.cnr;
         }
 
-        static void AddRotor(GameObject root, RotorSpec s, string directory)
+        static GameObject AddRotorVisual(GameObject root, RotorSpec s)
         {
             var go = new GameObject(s.name);
             go.transform.SetParent(root.transform, false);
@@ -103,7 +125,12 @@ namespace DroneSim
             Object.DestroyImmediate(disc.GetComponent<Collider>());
             disc.transform.SetParent(go.transform, false);
             disc.transform.localScale = new Vector3(s.propDiameter, 0.005f, s.propDiameter);
+            return go;
+        }
 
+        static void AddRotor(GameObject root, RotorSpec s, string directory)
+        {
+            var go = AddRotorVisual(root, s);
             var r = go.AddComponent<Rotor>();
             r.channel = s.channel;
             r.spinDirection = s.Spin;

@@ -3,6 +3,7 @@
     "rootNamespace": "",
     "references": [
         "DroneSim",
+        "DroneSim.Editor",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

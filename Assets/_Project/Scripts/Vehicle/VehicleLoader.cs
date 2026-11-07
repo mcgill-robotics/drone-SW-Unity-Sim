@@ -12,6 +12,7 @@ namespace DroneSim
     public class VehicleLoader : MonoBehaviour
     {
         [Tooltip("Spec name in StreamingAssets/vehicles (x500, quadplane) or a path to a .json file")]
+        [Delayed]
         public string vehicle = "x500";
 
         /// <summary>
