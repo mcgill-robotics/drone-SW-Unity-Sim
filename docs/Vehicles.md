@@ -55,6 +55,7 @@ the default.
 | `collider` | [Collider](#collider) |
 | `rotors` | List of [rotors](#rotors), at least one |
 | `wings` | List of at most one [wing](#wings), optional. The quadplane has one; the X500 none |
+| `bodyDrag` | [Body drag](#bodydrag), optional. Off unless `enabled` is true |
 | `controlSurfaces` | List of [control surfaces](#controlsurfaces), optional |
 | `imu` | [IMU mount](#imu) |
 | `cameras` | List of [camera mounts](#cameras), optional |
@@ -107,7 +108,12 @@ that split.
 | `maxThrust` | N | | Thrust at full speed. Thrust is `maxThrust x speed^2`. Required unless `thrustTable` is set, and ignored when it is |
 | `thrustTable` | | | CSV file next to the spec, see [Thrust tables](#thrust-tables). Replaces `maxThrust` |
 | `momentRatio` | m | 0.016 | Reaction torque per newton of thrust, PX4's `CA_ROTORn_KM` without the sign. Ignored when the thrust table has a torque column |
-| `timeConstant` | s | 0.05 | First-order spin-up lag. Must be positive |
+| `timeConstant` | s | 0.05 | First-order lag between the command and the motor speed, for spinning up and down. Must be positive |
+| `timeConstantUp` | s | 0 | Lag when speeding up. 0 uses `timeConstant`. The Gazebo X500 uses 0.0125 |
+| `timeConstantDown` | s | 0 | Lag when slowing down. 0 uses `timeConstant`. The Gazebo X500 uses 0.025 |
+| `latency` | s | 0 | Dead time between a command arriving and the motor starting to respond, rounded up to whole physics steps (4 ms). 0 to 0.5. A disarm cuts the motor at once and cancels commands still waiting |
+| `rotorDrag` | kg/rad | 0 | Drag from air flowing across the propeller disc: force = `rotorDrag` x rotor speed (rad/s) x the airflow across the disc (m/s), against the airflow, applied at the rotor. PX4's `rotorDragCoefficient`; the Gazebo X500 uses 8.06428e-05. 0 turns it off. Needs `maxSpeed` |
+| `maxSpeed` | rad/s | 0 | Rotor speed at full throttle (the Gazebo X500's `maxRotVelocity` is 1000). Rotor speed is this x sqrt(thrust / max thrust). Only used by `rotorDrag` |
 | `idle` | | 0 | Speed when armed at zero throttle, as a fraction of full speed. 0 to 0.5. The Gazebo X500 idles at 0.15. Must be 0 with a `thrustTable` |
 | `source` | | | [Source](#sources) |
 
@@ -169,6 +175,23 @@ quadplane's value, which is plausible for a conventional airframe, not measured.
 | `source` | | | [Source](#sources) |
 
 The summary reports wing loading and the stall speed computed from `cl0 + clAlpha x stallAlpha`.
+
+### bodyDrag
+
+Drag on the airframe itself, separate from the wing's aerodynamics and the rotors' drag. Optional:
+leave the section out, or set `enabled` to false, and nothing changes. Both effects act on the centre
+of mass.
+
+| Field | Unit | Default | Meaning |
+|---|---|---|---|
+| `enabled` | | false | Turns the module on |
+| `cdA` | m^2 | `[0, 0, 0]` | Drag coefficient times reference area along x, y, z (FRD). Force along an axis = 1/2 x air density x `cdA` x speed^2 along that axis, against the airflow. Air density is the wing's, or sea level without one |
+| `angularDamping` | N m s/rad | `[0, 0, 0]` | Torque against rotation per rad/s, about roll, pitch, yaw |
+| `source` | | | [Source](#sources). Listed under `Estimated, not measured` when `estimate` or missing |
+
+Enabling it replaces the 0.05 per second angular damping every vehicle gets by default, so set
+`angularDamping` high enough that the aircraft doesn't spin more freely than before. Values of zero
+for all three axes with `enabled` true remove the damping entirely.
 
 ### controlSurfaces
 
