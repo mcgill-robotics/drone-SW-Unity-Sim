@@ -27,6 +27,7 @@ namespace DroneSim
         public BoxSpec collider = new BoxSpec();
         public RotorSpec[] rotors = new RotorSpec[0];
         public WingSpec[] wings = new WingSpec[0];
+        public BodyDragSpec bodyDrag = new BodyDragSpec();
         public SurfaceSpec[] controlSurfaces = new SurfaceSpec[0];
         public MountSpec imu = new MountSpec();
         public CameraMountSpec[] cameras = new CameraMountSpec[0];
@@ -95,6 +96,11 @@ namespace DroneSim
                 if (string.IsNullOrEmpty(r.thrustTable) && r.maxThrust <= 0f) p.Add($"{who}: needs maxThrust or a thrustTable");
                 if (r.momentRatio < 0f) p.Add($"{who}: momentRatio can't be negative");
                 if (r.timeConstant <= 0f) p.Add($"{who}: timeConstant must be positive");
+                if (r.timeConstantUp < 0f) p.Add($"{who}: timeConstantUp can't be negative (0 uses timeConstant)");
+                if (r.timeConstantDown < 0f) p.Add($"{who}: timeConstantDown can't be negative (0 uses timeConstant)");
+                if (r.latency < 0f || r.latency > 0.5f) p.Add($"{who}: latency must be 0 to 0.5 s");
+                if (r.rotorDrag < 0f) p.Add($"{who}: rotorDrag can't be negative");
+                if (r.rotorDrag > 0f && r.maxSpeed <= 0f) p.Add($"{who}: rotorDrag needs maxSpeed (rotor speed at full throttle, rad/s) to know how fast the rotor spins");
                 if (r.idle < 0f || r.idle > 0.5f) p.Add($"{who}: idle must be 0 to 0.5");
                 if (!string.IsNullOrEmpty(r.thrustTable))
                 {
@@ -117,6 +123,11 @@ namespace DroneSim
             {
                 if (!Is3(w.aeroCenter)) p.Add("wing: aeroCenter needs 3 values");
                 if (w.area <= 0f || w.span <= 0f || w.chord <= 0f) p.Add("wing: area, span and chord must be positive");
+            }
+            if (bodyDrag.enabled)
+            {
+                if (!Is3(bodyDrag.cdA) || bodyDrag.cdA.Any(v => v < 0f)) p.Add("bodyDrag: cdA needs 3 values, none negative");
+                if (!Is3(bodyDrag.angularDamping) || bodyDrag.angularDamping.Any(v => v < 0f)) p.Add("bodyDrag: angularDamping needs 3 values, none negative");
             }
             if (!Is3(imu.position)) p.Add("imu.position needs 3 values");
             foreach (var c in cameras)
@@ -229,6 +240,7 @@ namespace DroneSim
             yield return ("mass properties", massProperties.source ?? "");
             foreach (var r in rotors) yield return ($"rotor {r.name}", r.source ?? "");
             foreach (var w in wings) yield return ("wing", w.source ?? "");
+            if (bodyDrag.enabled) yield return ("body drag", bodyDrag.source ?? "");
             foreach (var s in controlSurfaces) yield return ($"control surface {s.name}", s.source ?? "");
         }
 
@@ -293,7 +305,13 @@ namespace DroneSim
         public float maxThrust;
         [Tooltip("Reaction torque per newton of thrust (m), PX4's |CA_ROTORn_KM|")]
         public float momentRatio = 0.016f;
-        [Tooltip("Spin-up time constant (s)")] public float timeConstant = 0.05f;
+        [Tooltip("Spin-up and spin-down time constant (s), unless timeConstantUp or timeConstantDown is set")] public float timeConstant = 0.05f;
+        [Tooltip("Spin-up time constant (s). 0 uses timeConstant")] public float timeConstantUp;
+        [Tooltip("Spin-down time constant (s). 0 uses timeConstant")] public float timeConstantDown;
+        [Tooltip("Dead time between a command arriving and the motor responding (s), 0 to 0.5. 0 for none")] public float latency;
+        [Tooltip("Rotor drag coefficient (kg/rad): drag per m/s of airflow across the disc and rad/s of rotor speed, PX4's rotorDragCoefficient. 0 for none")]
+        public float rotorDrag;
+        [Tooltip("Rotor speed at full throttle (rad/s). Required when rotorDrag is set")] public float maxSpeed;
         [Tooltip("Speed when armed at zero throttle, as a fraction of full. 0 with a thrustTable")] public float idle;
         [Tooltip("CSV next to the spec: throttle as PX4 commands it (0..1), thrust (N), optional torque (N m)")]
         public string thrustTable;
@@ -362,6 +380,19 @@ namespace DroneSim
         public float cd0 = 0.04f, oswald = 0.8f, cyBeta = -0.3f;
         public float cmAlpha = -0.6f, cnBeta = 0.08f, clBeta = -0.05f;
         public float clp = -0.5f, cmq = -8f, cnr = -0.1f;
+        public string source;
+    }
+
+    /// <summary>
+    /// Drag on the airframe: quadratic translational drag and linear angular damping. Off unless
+    /// enabled. Turning it on replaces the built-in angular damping of 0.05 per second.
+    /// </summary>
+    [Serializable]
+    public class BodyDragSpec
+    {
+        public bool enabled;
+        [Tooltip("Drag coefficient x reference area (m^2) along x, y, z, FRD")] public float[] cdA = { 0f, 0f, 0f };
+        [Tooltip("Angular damping (N m s/rad) about roll, pitch, yaw")] public float[] angularDamping = { 0f, 0f, 0f };
         public string source;
     }
 
