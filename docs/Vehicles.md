@@ -58,6 +58,7 @@ the default.
 | `controlSurfaces` | List of [control surfaces](#controlsurfaces), optional |
 | `imu` | [IMU mount](#imu) |
 | `cameras` | List of [camera mounts](#cameras), optional |
+| `lidars` | List of [lidar mounts](#lidars), optional |
 | `visuals` | List of [visual shapes](#visuals), optional |
 | `px4` | [PX4 airframe settings](#px4) |
 
@@ -202,6 +203,22 @@ One entry per onboard camera. Topics, resolution, rate and format are not here; 
 | `name` | | Must match a camera entry in `sim_config.json`: `ForwardCamera` or `DownCamera` in the shipped config |
 | `position` | m | Lens position, FRD from the datum |
 | `pitchDownDeg` | deg | Tilt below the nose direction: 0 looks forward, 90 straight down |
+
+### lidars
+
+One entry per onboard Velodyne VLP-16. Topic, frame, spin rate, range and noise are not here; they
+are in `sim_config.json`, matched by `name` ([Lidar config](Development#lidar-config)). A lidar with
+no `sim_config.json` entry is not published.
+
+| Field | Unit | Meaning |
+|---|---|---|
+| `name` | | Must match a lidar entry in `sim_config.json`: `Lidar` in the shipped config |
+| `position` | m | Centre of the sensor, FRD from the datum |
+| `pitchDownDeg` | deg | Tilt of the spin axis towards the nose. 0 is upright, scanning the horizontal plane |
+
+Lasers that hit the vehicle's own [collider](#collider) give no points, so a mount below the
+collider's top loses the directions the box covers. The mounts in the shipped specs are
+placeholders on top of the airframe; set them to where the sensor really sits.
 
 ### visuals
 

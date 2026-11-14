@@ -22,5 +22,16 @@
       "format": "jpeg",
       "jpegQuality": 75
     }
+  ],
+  "lidars": [
+    {
+      "name": "Lidar",
+      "topic": "/velodyne_points",
+      "frameId": "velodyne",
+      "rotationHz": 10,
+      "minRange": 0.5,
+      "maxRange": 100,
+      "rangeNoiseStdDev": 0.015
+    }
   ]
 }

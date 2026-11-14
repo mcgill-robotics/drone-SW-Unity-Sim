@@ -4,7 +4,7 @@ namespace DroneSim
 {
     /// <summary>
     /// Builds a vehicle GameObject from a VehicleSpec: rigidbody, collider, rotors, control
-    /// surfaces, wing, IMU, ground truth, cameras and placeholder visuals. The transform sits at
+    /// surfaces, wing, IMU, ground truth, cameras, lidars and placeholder visuals. The transform sits at
     /// the spec's datum. Components look up their neighbours in Awake, which runs as soon as they
     /// are added, so the order below matters: rigidbody first, wing before surfaces, actuators last.
     /// </summary>
@@ -88,6 +88,7 @@ namespace DroneSim
             gt.AddComponent<GroundTruthPublisher>().PublishRate = 50f;
 
             foreach (var c in spec.cameras) AddCamera(root, c);
+            foreach (var l in spec.lidars) AddLidar(root, l);
 
             root.AddComponent<VehicleActuators>();
         }
@@ -167,6 +168,15 @@ namespace DroneSim
             cam.nearClipPlane = 0.1f;
             cam.farClipPlane = 5000f;
             go.AddComponent<CameraPublisher>();
+        }
+
+        static void AddLidar(GameObject root, LidarMountSpec s)
+        {
+            var go = new GameObject(s.name);
+            go.transform.SetParent(root.transform, false);
+            go.transform.localPosition = Frames.FrdToUnity(s.position);
+            go.transform.localRotation = Quaternion.Euler(s.pitchDownDeg, 0f, 0f);
+            go.AddComponent<LidarPublisher>();
         }
 
         static void AddVisual(GameObject root, VisualSpec v)

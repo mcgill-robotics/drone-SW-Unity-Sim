@@ -27,6 +27,8 @@ namespace DroneSim.Tests
             Assert.IsTrue(FlightScene.Bridge != null && FlightScene.Bridge.enabled, "the PX4 bridge turned itself off");
             foreach (var cam in rb.GetComponentsInChildren<CameraPublisher>(true))
                 Assert.IsTrue(cam.enabled, $"camera {cam.name} has no usable entry in sim_config.json");
+            foreach (var lidar in rb.GetComponentsInChildren<LidarPublisher>(true))
+                Assert.IsTrue(lidar.enabled, $"lidar {lidar.name} has no usable entry in sim_config.json");
 
             yield return FlightScene.Steps(750);
 
@@ -44,6 +46,35 @@ namespace DroneSim.Tests
             // Proper acceleration at rest points up: +y in Unity body axes, about 9.81 plus noise.
             var imu = rb.GetComponentInChildren<ImuModel>();
             Assert.Less(Vector3.Distance(new Vector3(0f, 9.81f, 0f), imu.Acceleration), 0.5f, $"IMU reads {imu.Acceleration}");
+        }
+
+        [UnityTest]
+        public IEnumerator Lidar_SeesTheGroundAndNotTheVehicle(
+            [ValueSource(typeof(FlightScene), nameof(FlightScene.Vehicles))] string vehicle)
+        {
+            yield return FlightScene.Load(vehicle);
+            yield return FlightScene.Steps(750);   // settled on the ground
+
+            var rb = FlightScene.Vehicle;
+            var lidar = rb.GetComponentInChildren<LidarPublisher>();
+            Assert.IsNotNull(lidar, $"{vehicle} has no lidar");
+
+            // 750 steps are 3 s of spinning at 10 Hz.
+            Assert.That(lidar.Revolutions, Is.InRange(29, 31), "revolutions completed while the sim ran");
+            Assert.Greater(lidar.LastPointCount, 1000, "the last revolution has too few points");
+
+            int count = lidar.Scan();
+            var points = lidar.LastWorldPoints.Take(count).ToArray();
+            var config = SimConfig.Current.FindLidar(lidar.name);
+
+            // The downward lasers hit the ground (y = 0) or the 4 cm runway strip.
+            Assert.Greater(points.Count(p => Mathf.Abs(p.y) < 0.2f), 1000, "too few points on the ground");
+            Assert.IsFalse(points.Any(p => p.y < -0.2f), "points below the ground");
+            // Nothing nearer than the minimum range, so nothing on the vehicle itself.
+            float nearest = points.Min(p => Vector3.Distance(p, lidar.transform.position));
+            Assert.Greater(nearest, config.minRange - 0.1f, "a point inside the minimum range");
+            float farthest = points.Max(p => Vector3.Distance(p, lidar.transform.position));
+            Assert.Less(farthest, config.maxRange + 0.1f, "a point past the maximum range");
         }
 
         [UnityTest]

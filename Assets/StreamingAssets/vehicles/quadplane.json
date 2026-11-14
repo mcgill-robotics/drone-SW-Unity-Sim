@@ -41,13 +41,17 @@
     { "name": "DownCamera", "position": [0.1, 0, 0.08], "pitchDownDeg": 90 },
     { "name": "ForwardCamera", "position": [0.35, 0, -0.05], "pitchDownDeg": 0 }
   ],
+  "lidars": [
+    { "name": "Lidar", "position": [0, 0, -0.15], "pitchDownDeg": 0 }
+  ],
   "visuals": [
     { "name": "Fuselage", "shape": "capsule", "position": [0, 0, 0], "axis": "x", "diameter": 0.15, "length": 1.1 },
     { "name": "Wing", "shape": "box", "position": [0.05, 0, 0], "size": [0.22, 2.0, 0.03] },
     { "name": "Tail", "shape": "box", "position": [-0.55, 0, -0.02], "size": [0.15, 0.6, 0.02] },
     { "name": "Fin", "shape": "box", "position": [-0.55, 0, -0.12], "size": [0.15, 0.02, 0.2] },
     { "name": "BoomL", "shape": "box", "position": [0, -0.5, 0], "size": [0.9, 0.03, 0.03] },
-    { "name": "BoomR", "shape": "box", "position": [0, 0.5, 0], "size": [0.9, 0.03, 0.03] }
+    { "name": "BoomR", "shape": "box", "position": [0, 0.5, 0], "size": [0.9, 0.03, 0.03] },
+    { "name": "LidarBody", "shape": "cylinder", "position": [0, 0, -0.15], "axis": "z", "diameter": 0.103, "length": 0.072 }
   ],
   "px4": { "baseAirframe": "1040_gazebo-classic_standard_vtol", "autostartId": 22001 }
 }

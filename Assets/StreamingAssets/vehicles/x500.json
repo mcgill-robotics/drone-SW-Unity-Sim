@@ -23,12 +23,16 @@
     { "name": "DownCamera", "position": [0.05, 0, 0.05], "pitchDownDeg": 90 },
     { "name": "ForwardCamera", "position": [0.1, 0, 0.06], "pitchDownDeg": 20 }
   ],
+  "lidars": [
+    { "name": "Lidar", "position": [0, 0, -0.12], "pitchDownDeg": 0 }
+  ],
   "visuals": [
     { "name": "Body", "shape": "box", "position": [0, 0, -0.007], "size": [0.2, 0.2, 0.05] },
     { "name": "ArmA", "shape": "box", "position": [0, 0, -0.03], "size": [0.5, 0.02, 0.02], "yawDeg": 45 },
     { "name": "ArmB", "shape": "box", "position": [0, 0, -0.03], "size": [0.5, 0.02, 0.02], "yawDeg": -45 },
     { "name": "SkidL", "shape": "box", "position": [0, -0.132, 0.22], "size": [0.25, 0.015, 0.015] },
-    { "name": "SkidR", "shape": "box", "position": [0, 0.132, 0.22], "size": [0.25, 0.015, 0.015] }
+    { "name": "SkidR", "shape": "box", "position": [0, 0.132, 0.22], "size": [0.25, 0.015, 0.015] },
+    { "name": "LidarBody", "shape": "cylinder", "position": [0, 0, -0.12], "axis": "z", "diameter": 0.103, "length": 0.072 }
   ],
   "px4": { "baseAirframe": "10016_none_iris", "autostartId": 22002 }
 }
