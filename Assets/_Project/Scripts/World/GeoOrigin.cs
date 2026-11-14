@@ -13,12 +13,12 @@ namespace DroneSim
         private static GeoOrigin _instance;
         public static GeoOrigin Instance { get => _instance != null ? _instance : _instance = FindAnyObjectByType<GeoOrigin>(); private set => _instance = value; }
 
-        // Defaults are PX4 SITL's stock home, so a plain PX4 launch lands where PX4's docs expect.
+        // Defaults are Helsinki-Malmi Airport. PX4_HOME_* environment variables can still move home.
         [Header("Origin (WGS84)")]
-        public double latitude = 47.397742;
-        public double longitude = 8.545594;
+        public double latitude = 60.25389;
+        public double longitude = 25.04417;
         [Tooltip("Altitude of Unity y=0 above mean sea level (m)")]
-        public double altitude = 488.0;
+        public double altitude = 17.0;
 
         private const double EarthRadius = 6378137.0;
         private double cosLat;
