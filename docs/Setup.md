@@ -15,11 +15,9 @@ needs WSL2 for PX4. Neither has been tried with this project.
 
 ## Unity project
 
-```bash
-git clone https://github.com/mcgill-robotics/drone-SW-Unity-Sim.git
-```
+Add file directly into Unity Hub: Add > Add from repository > Add project
 
-Add the folder in Unity Hub and open it with 6000.6.0f1. The first import takes several minutes.
+Do not git clone the unity sim repository, since it would require you to delete it from disk.
 
 ## PX4 SITL
 
