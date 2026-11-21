@@ -7,14 +7,15 @@ Assets/_Project/Scripts/     DroneSim assembly, namespace DroneSim
   Bridge/      Px4HilBridge (PX4 connection, lockstep), MavlinkCodec
   Vehicle/     VehicleSpec (JSON format, checks, summary), VehicleBuilder, VehicleLoader,
                Rotor, Wing, ControlSurface, VehicleActuators, ManualControl (keyboard flying)
-  Sensors/     ImuModel, SensorDelayBuffer, ROS publishers (cameras, ground truth)
+  Sensors/     ImuModel, SensorDelayBuffer, ROS publishers (cameras, lidar, ground truth),
+               Vlp16Model (lidar geometry and point layout)
   World/       GeoOrigin (home, GPS), WorldMagneticModel, Wind
   Core/        SimSettings, ROSSettings (sim-only topic names), SimConfig (sim_config.json), ROSClock,
                ROSPublisher base, SimulationResetManager, CommandLineOptions (player options)
   UserCamera/  Chase and free cameras
   Utils/       Noise generators
 Assets/Editor/DroneSim/      SceneBuilder (Flight.unity)
-Assets/StreamingAssets/      sim_config.json (cameras), vehicles/ (vehicle specs)
+Assets/StreamingAssets/      sim_config.json (cameras, lidars), vehicles/ (vehicle specs)
 Assets/Tests/EditMode/       Unit tests
 Assets/Tests/PlayMode/       Flight scene and PX4 bridge tests (FakePx4 plays PX4's side)
 tools/                       px4_flight_test.py, px4_airframe.py, sim_smoke_test.py,
@@ -28,8 +29,8 @@ and reached through `SimSettings.Vehicle`; `VehicleLoader.Loaded` holds the spec
 
 ## Vehicle config
 
-Everything about the aircraft (mass properties, rotors, wing, control surfaces, IMU and camera
-mounts, PX4 airframe) is in its spec under `Assets/StreamingAssets/vehicles/`, documented in
+Everything about the aircraft (mass properties, rotors, wing, control surfaces, IMU, camera and
+lidar mounts, PX4 airframe) is in its spec under `Assets/StreamingAssets/vehicles/`, documented in
 [Vehicles](Vehicles). The scene is not involved; see [Scenes](Architecture#scenes) for what is.
 
 ## Camera config
@@ -57,6 +58,53 @@ A camera with no entry or a bad one isn't published, and the Unity console says 
 
 The topic names are placeholders under `/sim/`. Set them to what the real drone's camera drivers
 publish once that's decided, so the same code runs on both.
+
+## Lidar config
+
+The `lidars` list in the same `sim_config.json`. One entry per lidar, matched by `name` to a lidar
+mount in the vehicle spec. Each is a simulated Velodyne VLP-16 publishing one
+`sensor_msgs/PointCloud2` per revolution.
+
+| Field | Meaning |
+|---|---|
+| `name` | Lidar mount name in the spec: `Lidar` in the shipped vehicles |
+| `topic` | Point cloud topic. `/velodyne_points` is what the Velodyne ROS 2 driver publishes |
+| `frameId` | `frame_id` in the header. The driver's default is `velodyne` |
+| `rotationHz` | Spin rate, 5 to 20, default 10. Also the publish rate. The lasers fire at a fixed rate, so the azimuth step follows from it: 0.1 degrees at 5 Hz, 0.2 at 10 Hz, 0.4 at 20 Hz |
+| `minRange`, `maxRange` | Metres, default 0.5 and 100. A laser whose first hit is nearer or farther gives no point |
+| `rangeNoiseStdDev` | Standard deviation of the Gaussian range noise in metres, default 0.015 |
+
+A lidar with no entry or a bad one isn't published, and the Unity console says why.
+
+Each point is 22 bytes: `x`, `y`, `z`, `intensity` (float32), `ring` (uint16, 0 is the lowest
+laser) and `time` (float32), in the sensor frame with ROS axes (x forward, y left, z up).
+
+The lidar spins continuously, so the cloud of a moving vehicle is distorted as on the real sensor:
+each point is in the sensor frame of the moment its laser fired. `time` is that moment in seconds
+from the start of the revolution (0 to just under 0.1 at 10 Hz), and the header stamp is the start
+of the revolution, so `stamp + time` is when a point was measured. Code that corrects the
+distortion needs both. Check the stamp convention against the real driver's settings: it can be
+set to stamp a scan with its first or its last packet.
+
+What the simulation leaves out:
+
+- The pose is sampled once per physics step (4 ms), not once per firing, so the distortion from
+  the vehicle's motion comes in steps of about 14 degrees of azimuth at 10 Hz.
+- `intensity` is a constant 100. Unity has no reflectivity to measure.
+- It sees colliders, not meshes. An object without a collider is invisible to it.
+- The vehicle carrying the lidar blocks the lasers that hit its collider, which is a box, not the
+  real airframe's shape.
+
+With each cloud the lidar publishes on `/tf` where it sits on the vehicle: a transform from
+`base_link` to `velodyne` (the `frameId`), taken from the lidar mount in the vehicle spec.
+`base_link` is the vehicle body (FLU, at the vehicle's origin): the frame the ground truth pose
+(`/sim/ground_truth/pose`, `map` to `base_link`, ENU) describes, and the child frame of odometry
+such as MAVROS `local_position/odom`. So code with the vehicle's pose can place each point in the
+world: point in world = pose × mount × point. The sim publishes no `map` to `base_link` transform,
+so in RViz2 set the fixed frame to `base_link` (cloud on the vehicle) or `velodyne`.
+
+While the ROS endpoint is not connected the lidar does not spin, except in the editor, where
+selecting the `Lidar` object under `Vehicle` in play mode draws the last scan in the Scene view.
 
 ## Actuator channels
 
@@ -90,8 +138,8 @@ pusher channels on `ManualControl` updated to match.
 
 | Suite | Covers | Needs |
 |---|---|---|
-| Edit mode, `Assets/Tests/EditMode/` | MAVLink encoding (checked against frames from pymavlink), frame conversions, geodetic math, the magnetic field table, actuators, the camera config, the vehicle spec (FRD to Unity, inertia, checks, defaults, thrust tables, hover throttle, shipped specs valid and building) | Unity |
-| Play mode, `Assets/Tests/PlayMode/` | `Flight.unity` with each shipped vehicle and no PX4: builds, starts without errors, settles upright on the ground. The PX4 bridge over a real socket with `FakePx4` on the other end: sensors at rest, one HIL_SENSOR per step, lockstep, PX4 stopping and restarting, arming and lift-off | Unity |
+| Edit mode, `Assets/Tests/EditMode/` | MAVLink encoding (checked against frames from pymavlink), frame conversions, geodetic math, the magnetic field table, actuators, the camera and lidar config, the lidar's ray geometry and point packing, the vehicle spec (FRD to Unity, inertia, checks, defaults, thrust tables, hover throttle, shipped specs valid and building) | Unity |
+| Play mode, `Assets/Tests/PlayMode/` | `Flight.unity` with each shipped vehicle and no PX4: builds, starts without errors, settles upright on the ground, and its lidar sees the ground but not the vehicle. The PX4 bridge over a real socket with `FakePx4` on the other end: sensors at rest, one HIL_SENSOR per step, lockstep, PX4 stopping and restarting, arming and lift-off | Unity |
 | Tools, `tools/tests/` | `px4_airframe.py` (rotor geometry, output functions, hover throttle, checks, constants shared with the C# code), `sim_smoke_test.py`, `coverage_summary.py` | Python 3 |
 | `tools/sim_smoke_test.py` | A running sim or player, from PX4's side of the link: sensors at rest, disarmed stays put, armed climbs | Python 3 |
 | `tools/px4_flight_test.py` | Takeoff, hover, transition and landing through PX4 ([Setup](Setup#flight-test-script)) | PX4 SITL, pymavlink |
@@ -145,7 +193,8 @@ required status check in `main`'s ruleset. Rename both together.
 Full list with types, rates and ports: [Interfaces](Architecture#interfaces).
 
 - Camera topics, frames, resolution, rate and format are in `sim_config.json`
-  ([Camera config](#camera-config)). The other topic and frame names are on `ROSSettings`.
+  ([Camera config](#camera-config)), and so are the lidar's topic, frame and spin rate
+  ([Lidar config](#lidar-config)). The other topic and frame names are on `ROSSettings`.
 - Clock and ground truth rates are on their publisher components. The ROS master switch is on
   `SimSettings`.
 - `/fmu/...` topics come from PX4 through the XRCE-DDS agent, not from Unity.
@@ -155,6 +204,7 @@ Full list with types, rates and ports: [Interfaces](Architecture#interfaces).
 | Setting | Where |
 |---|---|
 | Cameras: topics, frames, resolution, rate, format | `Assets/StreamingAssets/sim_config.json` |
+| Lidar: topic, frame, spin rate, range, noise | `Assets/StreamingAssets/sim_config.json` |
 | Wind: mean vector, gust amplitude, gust period | `Wind` on `Managers` |
 | Randomize mass, thrust and wind on reset (off by default) | `SimulationResetManager` on `Managers` |
 | IMU noise and latency | `ImuModel` on the vehicle's `IMU` object. The vehicle is built at startup, so change the defaults in `Sensors/ImuModel.cs` or edit them in play mode |

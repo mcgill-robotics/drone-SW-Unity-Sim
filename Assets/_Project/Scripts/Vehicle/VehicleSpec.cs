@@ -30,6 +30,7 @@ namespace DroneSim
         public SurfaceSpec[] controlSurfaces = new SurfaceSpec[0];
         public MountSpec imu = new MountSpec();
         public CameraMountSpec[] cameras = new CameraMountSpec[0];
+        public LidarMountSpec[] lidars = new LidarMountSpec[0];
         public VisualSpec[] visuals = new VisualSpec[0];
         public Px4Spec px4 = new Px4Spec();
 
@@ -121,6 +122,8 @@ namespace DroneSim
             if (!Is3(imu.position)) p.Add("imu.position needs 3 values");
             foreach (var c in cameras)
                 if (string.IsNullOrEmpty(c.name) || !Is3(c.position)) p.Add($"camera {c.name}: needs a name and 3 position values");
+            foreach (var l in lidars)
+                if (string.IsNullOrEmpty(l.name) || !Is3(l.position)) p.Add($"lidar {l.name}: needs a name and 3 position values");
             if (string.IsNullOrEmpty(px4.baseAirframe)) p.Add("px4.baseAirframe is empty");
             if (px4.autostartId <= 0) p.Add("px4.autostartId must be positive");
             return p;
@@ -406,6 +409,18 @@ namespace DroneSim
         [Tooltip("Matches the camera's entry in sim_config.json")] public string name;
         public float[] position;
         [Tooltip("Tilt below the nose direction: 0 looks forward, 90 straight down")] public float pitchDownDeg;
+    }
+
+    /// <summary>
+    /// Where a lidar sits on the vehicle. Only the mount is here; topic, rate, range and noise are in
+    /// sim_config.json, so they can change without touching the vehicle.
+    /// </summary>
+    [Serializable]
+    public class LidarMountSpec
+    {
+        [Tooltip("Matches the lidar's entry in sim_config.json")] public string name;
+        [Tooltip("Centre of the sensor in metres from the datum, FRD: forward, right, down")] public float[] position;
+        [Tooltip("Tilt of the spin axis towards the nose: 0 is upright, scanning the horizontal plane")] public float pitchDownDeg;
     }
 
     /// <summary>A primitive shape for looks only. Box size is the extent along x, y, z.</summary>

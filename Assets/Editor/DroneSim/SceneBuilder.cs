@@ -40,6 +40,16 @@ namespace DroneSim.Editor
             runway.GetComponent<Renderer>().sharedMaterial =
                 GetOrCreateMaterial("Assets/_Project/Materials/Runway.mat", new Color(0.3f, 0.3f, 0.32f));
 
+            // Obstacles for the lidar, beside the runway and clear of the start pose at the origin.
+            // The lidar only sees colliders, which the primitives come with. They sit at different
+            // distances (about 10 to 65 m) and sides, so one scan shows near and far returns.
+            var obstacles = new GameObject("Obstacles");
+            var obstacleMaterial = GetOrCreateMaterial("Assets/_Project/Materials/Obstacle.mat", new Color(0.6f, 0.45f, 0.3f));
+            AddObstacle(obstacles, obstacleMaterial, "Crate", PrimitiveType.Cube, new Vector3(9f, 1f, 5f), new Vector3(2f, 2f, 2f));
+            AddObstacle(obstacles, obstacleMaterial, "Wall", PrimitiveType.Cube, new Vector3(-15f, 2f, 20f), new Vector3(0.5f, 4f, 12f));
+            AddObstacle(obstacles, obstacleMaterial, "Pillar", PrimitiveType.Cylinder, new Vector3(12f, 3f, 30f), new Vector3(1f, 3f, 1f));
+            AddObstacle(obstacles, obstacleMaterial, "Block", PrimitiveType.Cube, new Vector3(-25f, 3f, 60f), new Vector3(6f, 6f, 6f));
+
             // Sun.
             var light = GameObject.Find("Directional Light");
             if (light != null) light.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
@@ -76,6 +86,17 @@ namespace DroneSim.Editor
             EditorSceneManager.SaveScene(scene, ScenePath);
             AssetDatabase.SaveAssets();
             Debug.Log($"[SceneBuilder] Saved {ScenePath}");
+        }
+
+        static void AddObstacle(GameObject parent, Material material, string name, PrimitiveType shape, Vector3 position, Vector3 scale)
+        {
+            var go = GameObject.CreatePrimitive(shape);
+            go.name = name;
+            go.transform.SetParent(parent.transform, false);
+            go.transform.position = position;
+            go.transform.localScale = scale;
+            go.isStatic = true;
+            go.GetComponent<Renderer>().sharedMaterial = material;
         }
 
         /// <summary>Reuse the material if it exists so rebuilding doesn't rewrite the asset.</summary>

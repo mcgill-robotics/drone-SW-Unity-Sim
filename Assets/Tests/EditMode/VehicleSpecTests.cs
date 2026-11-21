@@ -65,6 +65,15 @@ namespace DroneSim.Tests
         }
 
         [Test]
+        public void Problems_FlagsALidarWithoutNameOrPosition()
+        {
+            var spec = Shipped("x500");
+            Assert.IsNotEmpty(spec.lidars, "the shipped x500 should carry a lidar");
+            spec.lidars[0].position = new[] { 0f, 0f };
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("lidar")), string.Join("; ", spec.Problems()));
+        }
+
+        [Test]
         public void Problems_FlagsBadEntries()
         {
             var spec = Shipped("quadplane");
