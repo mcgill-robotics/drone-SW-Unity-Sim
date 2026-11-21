@@ -411,11 +411,15 @@ namespace DroneSim
         [Tooltip("Tilt below the nose direction: 0 looks forward, 90 straight down")] public float pitchDownDeg;
     }
 
+    /// <summary>
+    /// Where a lidar sits on the vehicle. Only the mount is here; topic, rate, range and noise are in
+    /// sim_config.json, so they can change without touching the vehicle.
+    /// </summary>
     [Serializable]
     public class LidarMountSpec
     {
         [Tooltip("Matches the lidar's entry in sim_config.json")] public string name;
-        public float[] position;
+        [Tooltip("Centre of the sensor in metres from the datum, FRD: forward, right, down")] public float[] position;
         [Tooltip("Tilt of the spin axis towards the nose: 0 is upright, scanning the horizontal plane")] public float pitchDownDeg;
     }
 

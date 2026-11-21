@@ -14,6 +14,8 @@ namespace DroneSim
     /// </summary>
     public static class Vlp16Model
     {
+        // The numbers below are from the VLP-16 user manual. The firing times are the ones the
+        // velodyne ROS driver uses to compute each point's time.
         public const int Rings = 16;
         public const float LowestElevationDeg = -15f;
         public const float RingSpacingDeg = 2f;
@@ -25,7 +27,8 @@ namespace DroneSim
 
         public const float MinRotationHz = 5f, MaxRotationHz = 20f;
 
-        // Byte offsets inside one point.
+        // Byte offsets inside one point. They must match the PointField list in LidarPublisher,
+        // which is what tells ROS how to read the bytes.
         public const int XOffset = 0, YOffset = 4, ZOffset = 8, IntensityOffset = 12, RingOffset = 16, TimeOffset = 18;
         public const int PointStep = 22;
 
@@ -50,6 +53,7 @@ namespace DroneSim
         /// Firing sequences in one revolution. The lasers fire at a fixed rate, so a slower spin
         /// gives a finer azimuth step: 0.1 degrees at 5 Hz, 0.2 at 10 Hz, 0.4 at 20 Hz.
         /// </summary>
+        // At 10 Hz: 1 / (10 x 55.296e-6) = 1808.4, so 1808 firing sequences, 360 / 1808 = 0.2 degrees apart.
         public static int ColumnsPerRevolution(float rotationHz) =>
             Mathf.RoundToInt((float)(1.0 / (rotationHz * FiringCycleSeconds)));
 
@@ -59,6 +63,9 @@ namespace DroneSim
         /// </summary>
         public static Vector3 Direction(int ring, float azimuthDeg)
         {
+            // Spherical to Cartesian: the elevation splits the unit vector into a vertical part
+            // (sin) and a horizontal part (cos), and the azimuth turns the horizontal part from
+            // forward (+z) towards the right (+x).
             float el = ElevationDeg(ring) * Mathf.Deg2Rad, az = azimuthDeg * Mathf.Deg2Rad;
             float horizontal = Mathf.Cos(el);
             return new Vector3(horizontal * Mathf.Sin(az), Mathf.Sin(el), horizontal * Mathf.Cos(az));
@@ -74,11 +81,14 @@ namespace DroneSim
             WriteFloat(buffer, offset + YOffset, -unityLocalPoint.x);
             WriteFloat(buffer, offset + ZOffset, unityLocalPoint.y);
             WriteFloat(buffer, offset + IntensityOffset, intensity);
+            // uint16, little-endian: low byte first.
             buffer[offset + RingOffset] = (byte)ring;
             buffer[offset + RingOffset + 1] = (byte)(ring >> 8);
             WriteFloat(buffer, offset + TimeOffset, time);
         }
 
+        // Writes a float32 little-endian, byte by byte. BitConverter.GetBytes would do the same but
+        // allocates a new array for every value: four per point, over a million a second here.
         static void WriteFloat(byte[] buffer, int offset, float value)
         {
             int bits = BitConverter.SingleToInt32Bits(value);

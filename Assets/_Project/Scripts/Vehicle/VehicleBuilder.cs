@@ -172,9 +172,11 @@ namespace DroneSim
 
         static void AddLidar(GameObject root, LidarMountSpec s)
         {
+            // Named after the mount so LidarPublisher can find its sim_config.json entry by name.
             var go = new GameObject(s.name);
             go.transform.SetParent(root.transform, false);
             go.transform.localPosition = Frames.FrdToUnity(s.position);
+            // A positive rotation about Unity's x axis tips the lidar's forward (+z) down.
             go.transform.localRotation = Quaternion.Euler(s.pitchDownDeg, 0f, 0f);
             go.AddComponent<LidarPublisher>();
         }

@@ -66,13 +66,13 @@ namespace DroneSim
     [Serializable]
     public class LidarConfig
     {
-        public string name;
-        public string topic;
-        public string frameId;
-        public float rotationHz = 10f;
-        public float minRange = 0.5f;
-        public float maxRange = 100f;
-        public float rangeNoiseStdDev = 0.015f;
+        public string name;                     // matches the lidar mount's name in the vehicle spec
+        public string topic;                    // PointCloud2 topic, /velodyne_points in the shipped config
+        public string frameId;                  // header frame_id of the cloud, velodyne in the shipped config
+        public float rotationHz = 10f;          // spin rate, 5 to 20 Hz on the real sensor; also the publish rate
+        public float minRange = 0.5f;           // metres; nearer hits give no point
+        public float maxRange = 100f;           // metres; the VLP-16's rated range
+        public float rangeNoiseStdDev = 0.015f; // metres, Gaussian; the datasheet gives +-3 cm accuracy
 
         /// <summary>Why this entry can't be used, or null if it can.</summary>
         public string Problem()

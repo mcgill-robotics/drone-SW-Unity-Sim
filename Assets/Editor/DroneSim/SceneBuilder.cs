@@ -41,7 +41,8 @@ namespace DroneSim.Editor
                 GetOrCreateMaterial("Assets/_Project/Materials/Runway.mat", new Color(0.3f, 0.3f, 0.32f));
 
             // Obstacles for the lidar, beside the runway and clear of the start pose at the origin.
-            // The lidar only sees colliders, which the primitives come with.
+            // The lidar only sees colliders, which the primitives come with. They sit at different
+            // distances (about 10 to 65 m) and sides, so one scan shows near and far returns.
             var obstacles = new GameObject("Obstacles");
             var obstacleMaterial = GetOrCreateMaterial("Assets/_Project/Materials/Obstacle.mat", new Color(0.6f, 0.45f, 0.3f));
             AddObstacle(obstacles, obstacleMaterial, "Crate", PrimitiveType.Cube, new Vector3(9f, 1f, 5f), new Vector3(2f, 2f, 2f));

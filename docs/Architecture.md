@@ -41,6 +41,7 @@ Every port and topic, and what takes its place on the real drone.
 | `/sim/down_cam/image_raw/compressed` | sensor_msgs/CompressedImage, 1280x720 JPEG | Unity to ROS 2 | 10 Hz | Down camera driver |
 | `/sim/down_cam/camera_info` | sensor_msgs/CameraInfo | Unity to ROS 2 | 10 Hz | Down camera driver |
 | `/velodyne_points` | sensor_msgs/PointCloud2, frame `velodyne`, fields x, y, z, intensity, ring, time | Unity to ROS 2 | 10 Hz | Velodyne driver |
+| `/tf` | tf2_msgs/TFMessage, `base_link` to `velodyne` (the lidar mount) | Unity to ROS 2 | 10 Hz, with each cloud | Robot description (static transform) |
 | `/clock` | rosgraph_msgs/Clock | Unity to ROS 2 | 10 Hz | None, sim only |
 | `/sim/ground_truth/pose` | geometry_msgs/PoseStamped, ENU relative to the Unity origin | Unity to ROS 2 | 50 Hz | None, sim only |
 | `/sim/ground_truth/twist` | geometry_msgs/TwistStamped, body FLU | Unity to ROS 2 | 50 Hz | None, sim only |

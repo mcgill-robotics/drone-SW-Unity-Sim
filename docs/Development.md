@@ -95,9 +95,16 @@ What the simulation leaves out:
 - The vehicle carrying the lidar blocks the lasers that hit its collider, which is a box, not the
   real airframe's shape.
 
-The sim publishes no TF. To view the cloud in RViz2, set the fixed frame to `velodyne`. While the
-ROS endpoint is not connected the lidar does not spin, except in the editor, where selecting the
-`Lidar` object under `Vehicle` in play mode draws the last scan in the Scene view.
+With each cloud the lidar publishes on `/tf` where it sits on the vehicle: a transform from
+`base_link` to `velodyne` (the `frameId`), taken from the lidar mount in the vehicle spec.
+`base_link` is the vehicle body (FLU, at the vehicle's origin): the frame the ground truth pose
+(`/sim/ground_truth/pose`, `map` to `base_link`, ENU) describes, and the child frame of odometry
+such as MAVROS `local_position/odom`. So code with the vehicle's pose can place each point in the
+world: point in world = pose × mount × point. The sim publishes no `map` to `base_link` transform,
+so in RViz2 set the fixed frame to `base_link` (cloud on the vehicle) or `velodyne`.
+
+While the ROS endpoint is not connected the lidar does not spin, except in the editor, where
+selecting the `Lidar` object under `Vehicle` in play mode draws the last scan in the Scene view.
 
 ## Actuator channels
 
