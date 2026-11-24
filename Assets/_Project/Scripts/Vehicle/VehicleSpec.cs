@@ -126,8 +126,9 @@ namespace DroneSim
             }
             if (bodyDrag.enabled)
             {
-                if (!Is3(bodyDrag.cdA) || bodyDrag.cdA.Any(v => v < 0f)) p.Add("bodyDrag: cdA needs 3 values, none negative");
-                if (!Is3(bodyDrag.angularDamping) || bodyDrag.angularDamping.Any(v => v < 0f)) p.Add("bodyDrag: angularDamping needs 3 values, none negative");
+                if (!Is3(bodyDrag.cdA) || bodyDrag.cdA.Any(v => !IsFiniteNonNegative(v))) p.Add("bodyDrag: cdA needs 3 values, finite and none negative");
+                if (!Is3(bodyDrag.angularDamping) || bodyDrag.angularDamping.Any(v => !IsFiniteNonNegative(v))) p.Add("bodyDrag: angularDamping needs 3 values, finite and none negative");
+                else p.AddRange(AngularDampingProblems());
             }
             if (!Is3(imu.position)) p.Add("imu.position needs 3 values");
             foreach (var c in cameras)
@@ -250,6 +251,33 @@ namespace DroneSim
             Frames.Eigen(massProperties.inertia.Matrix(), out double[] values, out _);
             var v = values.OrderBy(x => x).ToArray();
             return new Vector3((float)v[0], (float)v[1], (float)v[2]);
+        }
+
+        // NaN fails the comparison, so it is rejected along with negatives and infinity.
+        static bool IsFiniteNonNegative(float v) => v >= 0f && !float.IsInfinity(v);
+
+        /// <summary>
+        /// The damping torque -k x w is applied once per physics step, which turns the spin around every
+        /// step once k x step reaches the inertia about that axis, and blows it up past twice that. So
+        /// each axis is limited to inertia / step: roll by ixx, pitch by iyy, yaw by izz. These are the
+        /// diagonal terms, exact while the products of inertia are zero (as in the shipped specs) and
+        /// slightly lenient otherwise. Needs three finite, non-negative angularDamping values.
+        /// </summary>
+        List<string> AngularDampingProblems()
+        {
+            var problems = new List<string>();
+            float step = Time.fixedDeltaTime;
+            var inertia = massProperties.inertia;
+            string[] axes = { "roll", "pitch", "yaw" };
+            float[] about = { inertia.ixx, inertia.iyy, inertia.izz };
+            for (int a = 0; a < 3; a++)
+            {
+                if (about[a] <= 0f) continue;                    // already reported with the inertia
+                float limit = about[a] / step;
+                if (bodyDrag.angularDamping[a] >= limit)
+                    problems.Add($"bodyDrag: angularDamping {axes[a]} {bodyDrag.angularDamping[a]} must be below {limit:0.###} N m s/rad (inertia about {axes[a]} / the {step * 1000f:0.##} ms physics step), or the spin reverses every step");
+            }
+            return problems;
         }
 
         public static bool Is3(float[] a) => a != null && a.Length == 3;

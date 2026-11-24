@@ -376,6 +376,74 @@ namespace DroneSim.Tests
             Assert.IsTrue(spec.Problems().Any(s => s.Contains("bodyDrag") && s.Contains("angularDamping")), string.Join("; ", spec.Problems()));
         }
 
+        // The damping torque -k x w is applied once per physics step, so the spin turns around every
+        // step once k x dt reaches the inertia about that axis. x500: ixx = iyy = 0.02167, izz = 0.04.
+        static VehicleSpec WithDamping(float roll, float pitch, float yaw)
+        {
+            var spec = Shipped("x500");
+            spec.bodyDrag.enabled = true;
+            spec.bodyDrag.angularDamping = new[] { roll, pitch, yaw };
+            return spec;
+        }
+
+        static bool ReportsDamping(VehicleSpec spec) =>
+            spec.Problems().Any(s => s.Contains("bodyDrag") && s.Contains("angularDamping"));
+
+        [Test]
+        public void Problems_BodyDragDampingBeyondTheStepLimit_IsReported()
+        {
+            float limit = Shipped("x500").massProperties.inertia.ixx / Time.fixedDeltaTime;
+            var spec = WithDamping(2f * limit, 0f, 0f);
+            Assert.IsTrue(ReportsDamping(spec), string.Join("; ", spec.Problems()));
+        }
+
+        [Test]
+        public void Problems_BodyDragDampingWellBelowTheStepLimit_IsAccepted()
+        {
+            float limit = Shipped("x500").massProperties.inertia.ixx / Time.fixedDeltaTime;
+            var spec = WithDamping(0.5f * limit, 0.5f * limit, 0.5f * limit);
+            Assert.IsFalse(ReportsDamping(spec), string.Join("; ", spec.Problems()));
+        }
+
+        [Test]
+        public void Problems_BodyDragDampingLimit_UsesTheInertiaAboutEachAxis()
+        {
+            var i = Shipped("x500").massProperties.inertia;
+            float between = 0.75f * i.izz / Time.fixedDeltaTime;     // over the roll limit, under the yaw one
+            Assume.That(between * Time.fixedDeltaTime, Is.GreaterThan(i.ixx));
+            Assert.IsFalse(ReportsDamping(WithDamping(0f, 0f, between)), "yaw is limited by izz");
+            Assert.IsTrue(ReportsDamping(WithDamping(between, 0f, 0f)), "roll is limited by ixx");
+            Assert.IsTrue(ReportsDamping(WithDamping(0f, between, 0f)), "pitch is limited by iyy");
+        }
+
+        [Test]
+        public void Problems_BodyDragDampingLimit_RollUsesIxxAndPitchUsesIyy()
+        {
+            var spec = Shipped("quadplane");                          // ixx != iyy, unlike the x500
+            var i = spec.massProperties.inertia;
+            Assume.That(i.ixx, Is.LessThan(i.iyy));
+            float between = 0.5f * (i.ixx + i.iyy) / Time.fixedDeltaTime;   // over the roll limit, under the pitch one
+            spec.bodyDrag.enabled = true;
+            spec.bodyDrag.angularDamping = new[] { between, 0f, 0f };
+            Assert.IsTrue(ReportsDamping(spec), "roll is limited by ixx");
+            spec.bodyDrag.angularDamping = new[] { 0f, between, 0f };
+            Assert.IsFalse(ReportsDamping(spec), "pitch is limited by iyy, not ixx");
+        }
+
+        [Test]
+        public void Problems_BodyDragNaNOrInfiniteValues_AreReported()
+        {
+            Assert.IsTrue(ReportsDamping(WithDamping(float.NaN, 0f, 0f)), "NaN damping");
+            Assert.IsTrue(ReportsDamping(WithDamping(float.PositiveInfinity, 0f, 0f)), "infinite damping");
+
+            var spec = Shipped("x500");
+            spec.bodyDrag.enabled = true;
+            spec.bodyDrag.cdA = new[] { float.NaN, 0f, 0f };
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("bodyDrag") && s.Contains("cdA")), "NaN cdA");
+            spec.bodyDrag.cdA = new[] { float.PositiveInfinity, 0f, 0f };
+            Assert.IsTrue(spec.Problems().Any(s => s.Contains("bodyDrag") && s.Contains("cdA")), "infinite cdA");
+        }
+
         [Test]
         public void Problems_BodyDragDisabled_IgnoresItsValues()
         {

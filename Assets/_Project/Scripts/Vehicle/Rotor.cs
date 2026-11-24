@@ -105,7 +105,7 @@ namespace DroneSim
         public void ResetActuator()
         {
             running = false;
-            commanded = 0f; Throttle = 0f; Thrust = 0f; Torque = 0f;
+            commanded = 0f; Throttle = 0f; Thrust = 0f; Torque = 0f; SpeedFraction = 0f;
             tableThrustLagged = 0f; tableTorqueLagged = 0f;
             pending.Clear();
             clock = 0.0;

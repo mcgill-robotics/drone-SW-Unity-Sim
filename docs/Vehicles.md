@@ -165,7 +165,7 @@ quadplane's value, which is plausible for a conventional airframe, not measured.
 | `clAlpha` | /rad | 5 | Lift slope |
 | `stallAlphaDeg` | deg | 15 | Stall angle |
 | `clMaxPostStall` | | 0.6 | Lift coefficient after stall |
-| `cd0` | | 0.04 | Parasitic drag coefficient |
+| `cd0` | | 0.04 | Parasitic drag coefficient. `cd0` x `area` is a drag area that acts in every direction, so it overlaps with [bodyDrag](#bodydrag)'s `cdA` |
 | `oswald` | | 0.8 | Oswald efficiency for induced drag |
 | `cyBeta` | /rad | -0.3 | Sideforce per sideslip |
 | `cmAlpha` | /rad | -0.6 | Pitch stiffness |
@@ -182,6 +182,10 @@ Drag on the airframe itself, separate from the wing's aerodynamics and the rotor
 leave the section out, or set `enabled` to false, and nothing changes. Both effects act on the centre
 of mass.
 
+The two add up, so don't count the same drag twice. A vehicle with a [wing](#wings) already has
+`cd0` x `area` of drag in every direction (0.018 m^2 for the quadplane: `cd0` 0.04, `area` 0.45), so give `cdA` only the drag
+the wing doesn't represent, or lower `cd0`. Without a wing, `cdA` is the vehicle's only airframe drag.
+
 | Field | Unit | Default | Meaning |
 |---|---|---|---|
 | `enabled` | | false | Turns the module on |
@@ -190,8 +194,15 @@ of mass.
 | `source` | | | [Source](#sources). Listed under `Estimated, not measured` when `estimate` or missing |
 
 Enabling it replaces the 0.05 per second angular damping every vehicle gets by default, so set
-`angularDamping` high enough that the aircraft doesn't spin more freely than before. Values of zero
+`angularDamping` high enough that the aircraft doesn't spin more freely than before. That default is
+0.05 x the inertia about the axis: about 0.001 N m s/rad for the x500's roll and pitch. Values of zero
 for all three axes with `enabled` true remove the damping entirely.
+
+`angularDamping` also has an upper limit, and the spec is rejected above it. The torque is applied
+once per physics step, so a value of `inertia / step` or more (inertia about that axis, step =
+`Time.fixedDeltaTime`) reverses the spin every step, and twice that or more blows it up. For the x500 at the
+0.004 s step that is about 5.4 for roll and pitch and 10 for yaw. Real airframes need values far below that.
+`cdA` and `angularDamping` must also be finite numbers.
 
 ### controlSurfaces
 

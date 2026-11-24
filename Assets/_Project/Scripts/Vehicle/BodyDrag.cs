@@ -11,7 +11,7 @@ namespace DroneSim
     /// </summary>
     public class BodyDrag : MonoBehaviour
     {
-        [Tooltip("Drag coefficient x reference area along each body axis (m^2). Unity axes: x right, y up, z forward")]
+        [Tooltip("Drag coefficient x reference area along each body axis (m^2). Unity axes: x right, y up, z forward. Adds to a Wing's cd0 x area drag, so give it only the drag the wing doesn't represent")]
         public Vector3 dragArea;
         [Tooltip("Angular damping about each body axis (N m s/rad). Unity axes: x pitch, y yaw, z roll")]
         public Vector3 angularDamping;

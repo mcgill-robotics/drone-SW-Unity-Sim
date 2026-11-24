@@ -133,6 +133,18 @@ namespace DroneSim.Tests
             Assert.AreEqual(0f, r.Throttle);
         }
 
+        [Test]
+        public void ResetActuator_ZeroesSpeedFraction()
+        {
+            var r = NewRotor(go);
+            r.timeConstant = 0.02f;
+            r.Apply(Controls(1f), armed: true);
+            StepFor(r, 100, 0.004f);
+            Assume.That(r.SpeedFraction, Is.GreaterThan(0.9f));   // spun up, so the reset has something to clear
+            r.ResetActuator();
+            Assert.AreEqual(0f, r.SpeedFraction);
+        }
+
         [TestCase(0.004f, 5)]
         [TestCase(0.002f, 10)]
         [TestCase(0.001f, 20)]
