@@ -29,6 +29,7 @@ namespace DroneSim
         [Tooltip("Max lift coefficient past stall")] public float clMaxPostStall = 0.6f;
 
         [Header("Drag")]
+        [Tooltip("Parasitic drag coefficient. cd0 x area acts in every direction, on top of any BodyDrag cdA, so don't count the same drag in both")]
         public float cd0 = 0.04f;
         [Tooltip("Oswald efficiency")] public float oswald = 0.8f;
         [Tooltip("Sideforce coefficient per radian of sideslip")] public float cyBeta = -0.3f;

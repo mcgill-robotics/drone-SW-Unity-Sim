@@ -10,6 +10,9 @@ namespace DroneSim
     /// </summary>
     public static class VehicleBuilder
     {
+        /// <summary>Rigidbody angular damping (1/s) a vehicle gets when its spec has no bodyDrag section.</summary>
+        const float LegacyAngularDamping = 0.05f;
+
         /// <summary>
         /// Builds the vehicle with its datum at position. Place it there from the start: a rigidbody
         /// created inside the ground and moved out afterwards gets thrown through it. Expects a spec
@@ -58,7 +61,7 @@ namespace DroneSim
             var rb = root.AddComponent<Rigidbody>();
             rb.mass = spec.massProperties.mass;
             rb.linearDamping = 0f;
-            rb.angularDamping = 0.05f;
+            rb.angularDamping = spec.bodyDrag.enabled ? 0f : LegacyAngularDamping;   // the bodyDrag module replaces it
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
 
@@ -72,6 +75,7 @@ namespace DroneSim
             rb.inertiaTensorRotation = inertiaRotation;
 
             foreach (var w in spec.wings) AddWing(root, w);
+            if (spec.bodyDrag.enabled) AddBodyDrag(root, spec.bodyDrag);
             root.AddComponent<SensorDelayBuffer>();
 
             foreach (var v in spec.visuals) AddVisual(root, v);
@@ -113,6 +117,15 @@ namespace DroneSim
             w.clp = s.clp; w.cmq = s.cmq; w.cnr = s.cnr;
         }
 
+        // The spec's FRD triples become Unity-axis triples; a drag area or damping is a size, so the
+        // signs the axis swap introduces (up = -down) are dropped.
+        static void AddBodyDrag(GameObject root, BodyDragSpec s)
+        {
+            var drag = root.AddComponent<BodyDrag>();
+            drag.dragArea = Abs(Frames.FrdToUnity(s.cdA));
+            drag.angularDamping = Abs(Frames.FrdToUnity(s.angularDamping));
+        }
+
         static GameObject AddRotorVisual(GameObject root, RotorSpec s)
         {
             var go = new GameObject(s.name);
@@ -135,6 +148,11 @@ namespace DroneSim
             r.channel = s.channel;
             r.spinDirection = s.Spin;
             r.timeConstant = s.timeConstant;
+            r.timeConstantUp = s.timeConstantUp;
+            r.timeConstantDown = s.timeConstantDown;
+            r.latency = s.latency;
+            r.dragCoefficient = s.rotorDrag;
+            r.maxSpeed = s.maxSpeed;
             r.idleSpeed = s.idle;
             r.maxThrust = s.MaxThrust(directory);
             if (!string.IsNullOrEmpty(s.thrustTable))
