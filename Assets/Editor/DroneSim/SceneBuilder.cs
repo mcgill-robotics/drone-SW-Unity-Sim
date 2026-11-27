@@ -3,6 +3,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Unity.Robotics.ROSTCPConnector;
+using CesiumForUnity;
 using DroneSim;
 
 namespace DroneSim.Editor
@@ -17,25 +18,47 @@ namespace DroneSim.Editor
     public static class SceneBuilder
     {
         const string ScenePath = "Assets/_Project/Scenes/Flight.unity";
+        const string HelsinkiTilesetUrl = "https://kartta.hel.fi/3d/mesh/Helsinki_2024/tileset.json";
+        const double MalmiLatitude = 60.25389;
+        const double MalmiLongitude = 25.04417;
+        const double MalmiElevation = 17.0;
 
         [MenuItem("Drone Sim/Build Flight Scene")]
         public static void Build()
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.DefaultGameObjects, NewSceneMode.Single);
 
-            // Ground: a flat 4 km plane in plain green.
-            var ground = GameObject.CreatePrimitive(PrimitiveType.Plane);
-            ground.name = "Ground";
-            ground.transform.localScale = new Vector3(400f, 1f, 400f);
-            ground.isStatic = true;
-            ground.GetComponent<Renderer>().sharedMaterial =
-                GetOrCreateMaterial("Assets/_Project/Materials/Ground.mat", new Color(0.35f, 0.45f, 0.25f));
+            // Helsinki 3D mesh, georeferenced to Helsinki-Malmi Airport.
+            var georeferenceObject = new GameObject("CesiumGeoreference");
+            var georeference = georeferenceObject.AddComponent<CesiumGeoreference>();
+            georeference.SetOriginLongitudeLatitudeHeight(MalmiLongitude, MalmiLatitude, MalmiElevation);
 
-            // Runway strip for a visual reference.
+            var tilesetObject = new GameObject("Helsinki 3D Mesh");
+            tilesetObject.transform.SetParent(georeferenceObject.transform, false);
+            var tileset = tilesetObject.AddComponent<Cesium3DTileset>();
+            tileset.tilesetSource = CesiumDataSource.FromUrl;
+            tileset.url = HelsinkiTilesetUrl;
+            // Generate colliders for streamed terrain and buildings so low-altitude
+            // obstacle collision and raycasts can interact with the world.
+            tileset.createPhysicsMeshes = true;
+            tileset.updateInEditor = false;
+            tileset.enableFogCulling = false;
+            tileset.maximumScreenSpaceError = 8f;
+            tileset.maximumCachedBytes = 1L * 1024L * 1024L * 1024L;
+            tileset.maximumSimultaneousTileLoads = 24;
+            tileset.loadingDescendantLimit = 20;
+            tileset.enableFrustumCulling = true;
+            tileset.enforceCulledScreenSpaceError = true;
+            tileset.culledScreenSpaceError = 64f;
+            tileset.showCreditsOnScreen = true;
+
+            // Helsinki-Malmi Airport runway 18/36. The runway remains a simple, stable
+            // physics surface while photogrammetry tiles stream in around it.
             var runway = GameObject.CreatePrimitive(PrimitiveType.Cube);
             runway.name = "Runway";
-            runway.transform.position = new Vector3(0f, 0.02f, 60f);
-            runway.transform.localScale = new Vector3(12f, 0.04f, 150f);
+            runway.transform.position = new Vector3(0f, 0.02f, 0f);
+            runway.transform.rotation = Quaternion.Euler(0f, 186f, 0f);
+            runway.transform.localScale = new Vector3(30f, 0.04f, 1280f);
             runway.isStatic = true;
             runway.GetComponent<Renderer>().sharedMaterial =
                 GetOrCreateMaterial("Assets/_Project/Materials/Runway.mat", new Color(0.3f, 0.3f, 0.32f));
@@ -67,7 +90,9 @@ namespace DroneSim.Editor
             {
                 cam.transform.position = new Vector3(-6f, 3f, -8f);
                 // Draw after the onboard cameras so the Game view always shows the chase view.
-                cam.GetComponent<Camera>().depth = 10;
+                var camera = cam.GetComponent<Camera>();
+                camera.depth = 10;
+                camera.farClipPlane = 10000f;
                 var orbit = cam.AddComponent<OrbitFollowCamera>();
                 orbit.distance = 10f;
             }

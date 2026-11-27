@@ -2,7 +2,8 @@
     "name": "DroneSim.Editor",
     "references": [
         "DroneSim",
-        "Unity.Robotics.ROSTCPConnector"
+        "Unity.Robotics.ROSTCPConnector",
+        "CesiumForUnity"
     ],
     "includePlatforms": [
         "Editor"
